@@ -12,34 +12,72 @@ A local voice-to-text transcription tool using OpenAI's Whisper model. Works com
 
 ## Installation
 
+### Option 1: AppImage (Recommended)
+
+Download and run - works on any Linux distribution:
+
+```bash
+# Download the AppImage
+wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage
+
+# Make it executable
+chmod +x listen-1.0.0-x86_64.AppImage
+
+# Run it
+./listen-1.0.0-x86_64.AppImage
+```
+
+**Install system-wide (optional):**
+
+```bash
+sudo cp listen-1.0.0-x86_64.AppImage /usr/local/bin/listen
+sudo chmod +x /usr/local/bin/listen
+
+# Now you can run 'listen' from anywhere
+listen --toggle
+```
+
+### Option 2: From Source
+
 1. **Install system dependencies:**
 
    ```bash
    sudo apt install libportaudio2 portaudio19-dev xclip
    ```
 
-2. **Set up Python environment:**
+2. **Clone and install:**
 
    ```bash
-   cd /home/bakar/dev/personal/listen
-   python -m venv env
-   source env/bin/activate
-   pip install -r requirements.txt
+   git clone https://github.com/abubakerKhaled/listen.git
+   cd listen
+   pip install .
    ```
+
+### Option 3: Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/abubakerKhaled/listen.git
+cd listen
+
+# Create virtual environment
+python -m venv env
+source env/bin/activate
+
+# Install in editable mode
+pip install -e .
+```
 
 ## Usage
 
 ### Start the app
 
 ```bash
-# Activate environment
-source env/bin/activate
+# Push-to-talk mode (hold Ctrl+Space to record)
+listen
 
-# Run in push-to-talk mode (hold Ctrl+Space to record)
-python listen.py
-
-# Or use toggle mode (press Ctrl+Space to start/stop)
-python listen.py --toggle
+# Toggle mode (press Ctrl+Space to start/stop)
+listen --toggle
 ```
 
 ### Controls
@@ -52,7 +90,7 @@ python listen.py --toggle
 ### Options
 
 ```bash
-python listen.py --help
+listen --help
 
 Options:
   --toggle, -t     Use toggle mode instead of push-to-talk
@@ -64,33 +102,25 @@ Options:
 
 ```bash
 # Use a larger model for better accuracy
-python listen.py --model small
+listen --model small
 
 # Toggle mode without clipboard copy
-python listen.py --toggle --no-copy
+listen --toggle --no-copy
 ```
 
-## System-wide Installation (Optional)
+## Building the AppImage
 
-To run `listen` from anywhere:
+To build the AppImage yourself:
 
 ```bash
-# Create a wrapper script
-mkdir -p ~/.local/bin
-cat > ~/.local/bin/listen << 'EOF'
-#!/bin/bash
-cd /home/bakar/dev/personal/listen
-source env/bin/activate
-python listen.py "$@"
-EOF
-chmod +x ~/.local/bin/listen
+# Install system dependencies
+sudo apt install libportaudio2 portaudio19-dev wget
 
-# Make sure ~/.local/bin is in your PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
+# Run the build script
+./build-appimage.sh
 ```
 
-Now you can run `listen` from any terminal!
+The script will create `listen-1.0.0-x86_64.AppImage` in the project directory.
 
 ## Troubleshooting
 
@@ -101,9 +131,18 @@ Now you can run `listen` from any terminal!
 
 ### Slow transcription on CPU
 
-- Use the `tiny` model: `python listen.py --model tiny`
+- Use the `tiny` model: `listen --model tiny`
 
 ### Keyboard shortcut not working
 
 - pynput requires access to input devices
 - On Wayland, you may need to run from a terminal with proper permissions
+
+### First run is slow
+
+- The Whisper model downloads on first use (~40MB for tiny, ~150MB for base)
+- Subsequent runs will be much faster
+
+## License
+
+Apache License 2.0 - See [LICENSE](LICENSE) for details.

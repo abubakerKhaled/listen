@@ -1,7 +1,6 @@
 """Speech-to-text transcription module using faster-whisper."""
 
 import io
-import os
 from dataclasses import dataclass
 from typing import Optional, Literal
 
@@ -126,25 +125,3 @@ class Transcriber:
             "device": self.device,
             "compute_type": self.compute_type,
         }
-
-
-if __name__ == "__main__":
-    import sys
-
-    # Test with an audio file
-    if len(sys.argv) < 2:
-        print("Usage: python transcriber.py <audio_file.wav>")
-        print("Testing with model loading only...")
-
-        transcriber = Transcriber()
-        print(f"Model loaded: {transcriber.get_model_info()}")
-    else:
-        audio_file = sys.argv[1]
-        print(f"Transcribing {audio_file}...")
-
-        transcriber = Transcriber()
-        result = transcriber.transcribe(audio_file)
-
-        print(f"\nTranscription: {result.text}")
-        print(f"Language: {result.language} ({result.language_probability:.1%})")
-        print(f"Duration: {result.duration:.1f}s")

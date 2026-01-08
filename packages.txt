@@ -1,2 +1,0 @@
-libportaudio2
-portaudio19-dev

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Listen - Voice-to-text transcription tool for Linux.
 
@@ -25,8 +24,8 @@ from rich.panel import Panel
 from rich.live import Live
 from rich.text import Text
 
-from recorder import AudioRecorder
-from transcriber import Transcriber, ModelSize
+from .recorder import AudioRecorder
+from .transcriber import Transcriber, ModelSize
 
 
 console = Console()

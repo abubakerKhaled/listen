@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Listen
+Comment=Voice-to-text transcription tool for Linux
+Exec=listen
+Icon=listen
+Categories=AudioVideo;Audio;Utility;
+Terminal=true
+Keywords=voice;speech;transcription;whisper;audio;

@@ -123,21 +123,3 @@ class AudioRecorder:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.terminate()
-
-
-if __name__ == "__main__":
-    # Simple test: record for 3 seconds
-    import time
-
-    print("Recording for 3 seconds...")
-    recorder = AudioRecorder(on_status_change=lambda s: print(f"Status: {s}"))
-
-    recorder.start()
-    time.sleep(3)
-    audio_data = recorder.stop()
-
-    # Save test recording
-    recorder.save_to_file("test_recording.wav")
-    print(f"Saved {len(audio_data)} bytes to test_recording.wav")
-
-    recorder.terminate()
