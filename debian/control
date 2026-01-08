@@ -1,7 +1,7 @@
 Source: listen
 Section: sound
 Priority: optional
-Maintainer: Abubaker Khaled <abubaker@example.com>
+Maintainer: abubakrkhaled1 <aboubkerkhaled77@gmail.com>
 Build-Depends: debhelper-compat (= 13),
                python3-all,
                python3-venv,
