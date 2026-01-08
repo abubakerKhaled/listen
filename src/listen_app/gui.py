@@ -94,6 +94,12 @@ class WaveformDrawingArea(Gtk.DrawingArea):
 class ListenGUI(Adw.Application):
     """GTK4 GUI for the Listen voice-to-text application."""
 
+    # States for the button cycle
+    STATE_READY = "ready"  # Ready to record
+    STATE_RECORDING = "recording"  # Currently recording
+    STATE_TRANSCRIBING = "transcribing"  # Processing audio
+    STATE_RESULT = "result"  # Showing result with copy option
+
     def __init__(
         self,
         model_size: Optional[ModelSize] = None,
@@ -105,8 +111,8 @@ class ListenGUI(Adw.Application):
 
         self._recorder: Optional[AudioRecorder] = None
         self._transcriber: Optional[Transcriber] = None
-        self._recording = False
-        self._processing = False
+        self._state = self.STATE_READY
+        self._last_transcription = ""
 
         self.connect("activate", self._on_activate)
 
@@ -143,14 +149,14 @@ class ListenGUI(Adw.Application):
         self.status_label.add_css_class("dim-label")
         content_box.append(self.status_label)
 
-        # Record button
-        self.record_button = Gtk.Button(label="🎤 Click to Record")
-        self.record_button.add_css_class("suggested-action")
-        self.record_button.add_css_class("pill")
-        self.record_button.set_size_request(-1, 50)
-        self.record_button.connect("clicked", self._on_record_clicked)
-        self.record_button.set_sensitive(False)
-        content_box.append(self.record_button)
+        # Main action button
+        self.action_button = Gtk.Button(label="🎤 Record")
+        self.action_button.add_css_class("suggested-action")
+        self.action_button.add_css_class("pill")
+        self.action_button.set_size_request(-1, 50)
+        self.action_button.connect("clicked", self._on_action_clicked)
+        self.action_button.set_sensitive(False)
+        content_box.append(self.action_button)
 
         # Transcription result
         self.result_label = Gtk.Label(label="")
@@ -196,7 +202,7 @@ class ListenGUI(Adw.Application):
                 self._update_status,
                 f"Ready • {info['model_size']} model on {info['device']}",
             )
-            GLib.idle_add(self.record_button.set_sensitive, True)
+            GLib.idle_add(self.action_button.set_sensitive, True)
         except Exception as e:
             GLib.idle_add(self._update_status, f"Error: {e}")
 
@@ -208,23 +214,24 @@ class ListenGUI(Adw.Application):
         """Handle recording status changes from AudioRecorder."""
         pass  # Status updates handled in button callback
 
-    def _on_record_clicked(self, button):
-        """Handle record button click."""
-        if self._processing:
-            return
-
-        if not self._recording:
+    def _on_action_clicked(self, button):
+        """Handle main action button click based on current state."""
+        if self._state == self.STATE_READY:
             self._start_recording()
-        else:
-            self._stop_recording()
+        elif self._state == self.STATE_RECORDING:
+            self._stop_and_transcribe()
+        elif self._state == self.STATE_RESULT:
+            self._copy_and_reset()
 
     def _start_recording(self):
         """Start recording audio."""
-        self._recording = True
-        self.record_button.set_label("⬛ Stop")
-        self.record_button.remove_css_class("suggested-action")
-        self.record_button.add_css_class("destructive-action")
-        self.status_label.set_text("Recording...")
+        self._state = self.STATE_RECORDING
+        self._last_transcription = ""
+
+        self.action_button.set_label("⏹️ Transcribe")
+        self.action_button.remove_css_class("suggested-action")
+        self.action_button.add_css_class("destructive-action")
+        self.status_label.set_text("Recording... Click to transcribe")
         self.result_label.set_text("")
         self.waveform.clear()
 
@@ -236,14 +243,13 @@ class ListenGUI(Adw.Application):
         """Handle incoming audio chunk for waveform."""
         GLib.idle_add(self.waveform.add_samples, data)
 
-    def _stop_recording(self):
+    def _stop_and_transcribe(self):
         """Stop recording and transcribe."""
-        self._recording = False
-        self._processing = True
+        self._state = self.STATE_TRANSCRIBING
 
-        self.record_button.set_label("⏳ Transcribing...")
-        self.record_button.remove_css_class("destructive-action")
-        self.record_button.set_sensitive(False)
+        self.action_button.set_label("⏳ Transcribing...")
+        self.action_button.remove_css_class("destructive-action")
+        self.action_button.set_sensitive(False)
         self.status_label.set_text("Processing audio...")
 
         # Stop and transcribe in background
@@ -270,20 +276,37 @@ class ListenGUI(Adw.Application):
 
     def _on_transcription_complete(self, text: str):
         """Handle transcription completion (runs on main thread)."""
-        self._processing = False
+        self._last_transcription = text
+        self._state = self.STATE_RESULT
 
-        self.record_button.set_label("🎤 Click to Record")
-        self.record_button.add_css_class("suggested-action")
-        self.record_button.set_sensitive(True)
+        self.action_button.set_label("📋 Copy & New Recording")
+        self.action_button.remove_css_class("destructive-action")
+        self.action_button.add_css_class("suggested-action")
+        self.action_button.set_sensitive(True)
 
-        if text and not text.startswith("Error:"):
+        if text and not text.startswith("Error:") and not text.startswith("("):
             self.status_label.set_text(
-                "✓ Copied to clipboard" if self.auto_copy else "Ready"
+                "✓ Copied to clipboard! Click to start new recording"
             )
             self.result_label.set_text(f'"{text}"')
         else:
-            self.status_label.set_text("Ready")
+            self.status_label.set_text("Ready • Click to start new recording")
             self.result_label.set_text(text)
+
+    def _copy_and_reset(self):
+        """Copy text to clipboard again and reset to ready state."""
+        if self._last_transcription and not self._last_transcription.startswith(
+            "Error:"
+        ):
+            pyperclip.copy(self._last_transcription)
+
+        self._state = self.STATE_READY
+        self._last_transcription = ""
+
+        self.action_button.set_label("🎤 Record")
+        self.status_label.set_text("Ready")
+        self.result_label.set_text("")
+        self.waveform.clear()
 
     def run_app(self):
         """Run the application."""

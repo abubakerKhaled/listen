@@ -65,8 +65,26 @@ class Transcriber:
         self.device = device
         self.compute_type = compute_type
 
-        # Load the model
-        self._model = WhisperModel(model_size, device=device, compute_type=compute_type)
+        # Load the model with fallback to CPU if CUDA libraries are missing
+        try:
+            self._model = WhisperModel(
+                model_size, device=device, compute_type=compute_type
+            )
+        except Exception as e:
+            error_str = str(e).lower()
+            if "cuda" in error_str or "cublas" in error_str or "cudnn" in error_str:
+                # CUDA libraries not available, fall back to CPU
+                print(
+                    f"Warning: CUDA libraries not available ({e}), falling back to CPU"
+                )
+                self.device = "cpu"
+                self.compute_type = "int8"
+                self.model_size = MODEL_RECOMMENDATIONS.get("cpu", "tiny")
+                self._model = WhisperModel(
+                    self.model_size, device="cpu", compute_type="int8"
+                )
+            else:
+                raise
 
     def _detect_device(self) -> str:
         """Detect available compute device."""
