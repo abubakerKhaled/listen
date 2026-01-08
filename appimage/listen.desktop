@@ -2,9 +2,12 @@
 Version=1.0
 Type=Application
 Name=Listen
-Comment=Voice-to-text transcription tool for Linux
-Exec=listen
+GenericName=Voice Transcription
+Comment=Voice-to-text transcription tool powered by OpenAI Whisper
+Exec=listen %U
 Icon=listen
 Categories=AudioVideo;Audio;Utility;
-Terminal=true
-Keywords=voice;speech;transcription;whisper;audio;
+Terminal=false
+Keywords=voice;speech;transcription;whisper;audio;recording;speech-to-text;
+StartupNotify=true
+StartupWMClass=listen

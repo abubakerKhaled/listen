@@ -22,7 +22,29 @@ wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.
 chmod +x listen-1.0.0-x86_64.AppImage
 ```
 
-### Install System-Wide (Recommended)
+### Quick Install Script (Recommended)
+
+Run the install script to set up Listen with full desktop integration:
+
+```bash
+# Clone the repository (if you haven't already)
+git clone https://github.com/abubakerKhaled/listen.git
+cd listen
+
+# Run the installer
+./install.sh
+```
+
+This will:
+
+- Install the AppImage to `~/.local/bin/listen`
+- Add Listen to your application menu
+- Install icons in multiple sizes
+- Update desktop database for instant availability
+
+### Manual Installation
+
+#### System-Wide
 
 Install globally so you can run `listen` from anywhere:
 
@@ -35,7 +57,7 @@ sudo chmod +x /usr/local/bin/listen
 listen --help
 ```
 
-### Alternative: User-Only Installation
+#### User-Only Installation
 
 If you don't have sudo access:
 
@@ -80,10 +102,10 @@ listen --cli --toggle
 
 ### CLI Controls
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+Space` | Start/stop recording |
-| `Ctrl+C` | Exit |
+| Key            | Action               |
+|----------------|----------------------|
+| `Ctrl+Space`   | Start/stop recording |
+| `Ctrl+C`       | Exit                 |
 
 ### Options
 
@@ -151,12 +173,34 @@ Use the tiny model: `listen --model tiny`
 
 ## Uninstall
 
+### Using the Uninstall Script (Recommended)
+
+If you installed using the install script:
+
+```bash
+./uninstall.sh
+```
+
+This will remove:
+
+- The AppImage from `~/.local/bin`
+- The desktop entry from your application menu
+- All installed icons
+
+### Manual Uninstall
+
 ```bash
 # If installed system-wide
 sudo rm /usr/local/bin/listen
 
 # If installed in ~/.local/bin
 rm ~/.local/bin/listen
+
+# Remove desktop entry (if installed via script)
+rm ~/.local/share/applications/listen.desktop
+
+# Remove icons (if installed via script)
+rm -f ~/.local/share/icons/hicolor/*/apps/listen.png
 ```
 
 ## License
