@@ -52,7 +52,13 @@ Listen automatically selects the optimal Whisper model based on your hardware:
 
 ## 🚀 Quick Start
 
-Install globally with one command:
+**One-command install with desktop integration:**
+
+```bash
+git clone https://github.com/abubakerKhaled/listen.git && cd listen && ./setup.sh
+```
+
+Or install globally (requires sudo):
 
 ```bash
 sudo wget -qO /usr/local/bin/listen https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage && sudo chmod +x /usr/local/bin/listen
@@ -70,8 +76,24 @@ listen
 
 ## 📦 Installation
 
+### Unified Setup Script (Recommended)
+
+```bash
+git clone https://github.com/abubakerKhaled/listen.git
+cd listen
+./setup.sh
+```
+
+| Option | Description |
+|--------|-------------|
+| `./setup.sh` | Build (if needed) and install with desktop integration |
+| `./setup.sh --system` | System-wide install to `/usr/local/bin` (requires sudo) |
+| `./setup.sh --build-only` | Only build the AppImage |
+| `./setup.sh --install-only` | Install existing AppImage |
+| `./setup.sh --update` | Check for and install updates |
+
 <details>
-<summary><strong>Step-by-step install</strong></summary>
+<summary><strong>Manual installation</strong></summary>
 
 ```bash
 # Download
@@ -81,19 +103,6 @@ wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.
 sudo mv listen-1.0.0-x86_64.AppImage /usr/local/bin/listen
 sudo chmod +x /usr/local/bin/listen
 ```
-
-</details>
-
-<details>
-<summary><strong>With desktop integration (app menu & icons)</strong></summary>
-
-```bash
-git clone https://github.com/abubakerKhaled/listen.git
-cd listen
-./install.sh
-```
-
-Installs to `~/.local/bin/listen` with desktop entry and icons.
 
 </details>
 
@@ -111,6 +120,22 @@ source ~/.bashrc
 ```
 
 </details>
+
+---
+
+## 🔄 Updating
+
+Check for and install updates:
+
+```bash
+./setup.sh --update
+```
+
+Or if you installed from the repo, pull and reinstall:
+
+```bash
+cd listen && git pull && ./setup.sh
+```
 
 ---
 
