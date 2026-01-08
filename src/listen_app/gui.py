@@ -121,7 +121,7 @@ class ListenGUI(Adw.Application):
         # Create main window
         self.window = Adw.ApplicationWindow(application=app)
         self.window.set_title("Listen")
-        self.window.set_default_size(400, 320)
+        self.window.set_default_size(420, 400)
 
         # Main container
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -132,11 +132,31 @@ class ListenGUI(Adw.Application):
         main_box.append(header)
 
         # Content box with padding
-        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         content_box.set_margin_start(20)
         content_box.set_margin_end(20)
-        content_box.set_margin_top(20)
-        content_box.set_margin_bottom(20)
+        content_box.set_margin_top(16)
+        content_box.set_margin_bottom(16)
+
+        # Device info panel (collapsible)
+        self.device_info_frame = Gtk.Frame()
+        self.device_info_frame.add_css_class("device-info-frame")
+        device_info_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        device_info_box.set_margin_start(12)
+        device_info_box.set_margin_end(12)
+        device_info_box.set_margin_top(8)
+        device_info_box.set_margin_bottom(8)
+
+        # Device info label
+        self.device_info_label = Gtk.Label(label="⏳ Initializing...")
+        self.device_info_label.set_xalign(0)
+        self.device_info_label.set_wrap(True)
+        self.device_info_label.add_css_class("device-info-label")
+        self.device_info_label.set_use_markup(True)
+        device_info_box.append(self.device_info_label)
+
+        self.device_info_frame.set_child(device_info_box)
+        content_box.append(self.device_info_frame)
 
         # Waveform visualization
         self.waveform = WaveformDrawingArea()
@@ -186,6 +206,20 @@ class ListenGUI(Adw.Application):
             background: linear-gradient(to bottom, #e53935, #c62828);
             color: white;
         }
+        .device-info-frame {
+            background: alpha(@card_bg_color, 0.5);
+            border-radius: 8px;
+        }
+        .device-info-label {
+            font-size: 11px;
+            font-family: monospace;
+        }
+        .gpu-active {
+            color: #76b900;
+        }
+        .cpu-active {
+            color: #0071c5;
+        }
         """
         provider = Gtk.CssProvider()
         provider.load_from_data(css)
@@ -198,13 +232,58 @@ class ListenGUI(Adw.Application):
         try:
             self._transcriber = Transcriber(model_size=self.model_size)
             info = self._transcriber.get_model_info()
+
+            # Format device info for display
+            device_text = self._format_device_info(info)
+            GLib.idle_add(self._update_device_info, device_text, info["device"])
+
             GLib.idle_add(
                 self._update_status,
-                f"Ready • {info['model_size']} model on {info['device']}",
+                f"Ready • {info['model_size'].upper()} model",
             )
             GLib.idle_add(self.action_button.set_sensitive, True)
         except Exception as e:
             GLib.idle_add(self._update_status, f"Error: {e}")
+            GLib.idle_add(
+                self._update_device_info,
+                "<span color='#e53935'>⚠ Error loading model</span>",
+                "error",
+            )
+
+    def _format_device_info(self, info: dict) -> str:
+        """Format device info for display."""
+        if info["device"] == "cuda" and info.get("gpu_name"):
+            # GPU mode - show detailed info
+            gpu_name = info["gpu_name"]
+            memory = info.get("gpu_memory_mb", 0)
+            cuda_ver = info.get("cuda_version", "N/A")
+            compute = info["compute_type"]
+            model = info["model_size"].upper()
+
+            return (
+                f"<span color='#76b900'>🟢 GPU</span>  <b>{gpu_name}</b>\n"
+                f"    Memory: {memory} MB │ CUDA: {cuda_ver}\n"
+                f"    Model: {model} │ Precision: {compute}"
+            )
+        else:
+            # CPU mode
+            compute = info["compute_type"]
+            model = info["model_size"].upper()
+
+            return (
+                f"<span color='#0071c5'>🔵 CPU</span>  Inference Mode\n"
+                f"    Model: {model} │ Precision: {compute}\n"
+                f"    <span color='#888'>Tip: Install CUDA for faster processing</span>"
+            )
+
+    def _update_device_info(self, text: str, device: str):
+        """Update device info display (thread-safe)."""
+        self.device_info_label.set_markup(text)
+        # Update CSS class based on device
+        self.device_info_label.remove_css_class("gpu-active")
+        self.device_info_label.remove_css_class("cpu-active")
+        if device == "cuda":
+            self.device_info_label.add_css_class("gpu-active")
 
     def _update_status(self, text: str):
         """Update status label (thread-safe)."""

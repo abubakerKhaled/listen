@@ -7,10 +7,10 @@ from typing import Optional, Literal
 from faster_whisper import WhisperModel
 
 
-# Model recommendations based on compute type
+# Model recommendations based on compute device
 MODEL_RECOMMENDATIONS = {
     "cpu": "tiny",  # Fast, low memory for CPU
-    "gpu": "base",  # Good balance for GPU
+    "cuda": "base",  # Good balance for GPU (CUDA)
 }
 
 # Available model sizes
@@ -146,9 +146,64 @@ class Transcriber:
         )
 
     def get_model_info(self) -> dict:
-        """Get information about the loaded model."""
-        return {
+        """Get detailed information about the loaded model and device."""
+        info = {
             "model_size": self.model_size,
             "device": self.device,
             "compute_type": self.compute_type,
+            "gpu_name": None,
+            "gpu_memory_mb": None,
+            "cuda_version": None,
+            "driver_version": None,
         }
+
+        if self.device == "cuda":
+            # Try to get GPU details
+            try:
+                import subprocess
+
+                result = subprocess.run(
+                    [
+                        "nvidia-smi",
+                        "--query-gpu=name,memory.total,driver_version",
+                        "--format=csv,noheader,nounits",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    parts = result.stdout.strip().split(", ")
+                    if len(parts) >= 3:
+                        info["gpu_name"] = parts[0].strip()
+                        info["gpu_memory_mb"] = int(parts[1].strip())
+                        info["driver_version"] = parts[2].strip()
+
+                # Get CUDA version
+                result = subprocess.run(
+                    [
+                        "nvidia-smi",
+                        "--query-gpu=driver_version",
+                        "--format=csv,noheader",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                # CUDA version from nvidia-smi header
+                result = subprocess.run(
+                    ["nvidia-smi"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.split("\n"):
+                        if "CUDA Version:" in line:
+                            cuda_part = line.split("CUDA Version:")[1].strip()
+                            info["cuda_version"] = cuda_part.split()[0].strip()
+                            break
+            except Exception:
+                pass  # Fallback silently if nvidia-smi fails
+
+        return info
