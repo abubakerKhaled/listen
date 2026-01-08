@@ -29,7 +29,11 @@ class AudioRecorder:
             on_status_change: Optional callback for status updates (e.g., 'recording', 'stopped')
             on_audio_chunk: Optional callback for real-time audio data (for waveform display)
         """
-        self._audio = pyaudio.PyAudio()
+
+        # Suppress ALSA error messages
+        with self._alsa_error_handler():
+            self._audio = pyaudio.PyAudio()
+
         self._stream: Optional[pyaudio.Stream] = None
         self._frames: list[bytes] = []
         self._is_recording = False
@@ -37,12 +41,44 @@ class AudioRecorder:
         self._on_status_change = on_status_change
         self._on_audio_chunk = on_audio_chunk
 
+    def _alsa_error_handler(self):
+        """Context manager to suppress ALSA error messages to stderr."""
+        from contextlib import contextmanager
+        import os
+
+        @contextmanager
+        def suppress_stderr():
+            null_fd = -1
+            saved_stderr_fd = -1
+            try:
+                # Open /dev/null
+                null_fd = os.open(os.devnull, os.O_RDWR)
+                # Save original stderr (FD 2)
+                saved_stderr_fd = os.dup(2)
+
+                # Redirect stderr (FD 2) to /dev/null
+                os.dup2(null_fd, 2)
+
+                yield
+            except Exception:
+                # If anything fails, still yield so the app continues
+                yield
+            finally:
+                # Restore stderr
+                if saved_stderr_fd >= 0:
+                    os.dup2(saved_stderr_fd, 2)
+                    os.close(saved_stderr_fd)
+                if null_fd >= 0:
+                    os.close(null_fd)
+
+        return suppress_stderr()
+
     def _notify_status(self, status: str) -> None:
         """Notify status change via callback if set."""
         if self._on_status_change:
             self._on_status_change(status)
 
-    def start(self) -> None:
+    def start(self, input_device_index: Optional[int] = None) -> None:
         """Start recording audio from the microphone."""
         with self._lock:
             if self._is_recording:
@@ -56,6 +92,7 @@ class AudioRecorder:
                 channels=self.CHANNELS,
                 rate=self.SAMPLE_RATE,
                 input=True,
+                input_device_index=input_device_index,
                 frames_per_buffer=self.CHUNK_SIZE,
                 stream_callback=self._audio_callback,
             )

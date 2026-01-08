@@ -71,12 +71,21 @@ class Transcriber:
     def _detect_device(self) -> str:
         """Detect available compute device."""
         try:
+            import ctranslate2
+
+            if ctranslate2.get_cuda_device_count() > 0:
+                return "cuda"
+        except ImportError:
+            pass
+
+        try:
             import torch
 
             if torch.cuda.is_available():
                 return "cuda"
         except ImportError:
             pass
+
         return "cpu"
 
     def transcribe(
