@@ -1,0 +1,5 @@
+PyAudio==0.2.14
+faster-whisper>=1.0.0
+pynput>=1.7.6
+pyperclip>=1.8.2
+rich>=13.0.0
