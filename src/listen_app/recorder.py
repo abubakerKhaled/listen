@@ -17,12 +17,17 @@ class AudioRecorder:
     CHUNK_SIZE = 1024
     FORMAT = pyaudio.paInt16
 
-    def __init__(self, on_status_change: Optional[Callable[[str], None]] = None):
+    def __init__(
+        self,
+        on_status_change: Optional[Callable[[str], None]] = None,
+        on_audio_chunk: Optional[Callable[[bytes], None]] = None,
+    ):
         """
         Initialize the audio recorder.
 
         Args:
             on_status_change: Optional callback for status updates (e.g., 'recording', 'stopped')
+            on_audio_chunk: Optional callback for real-time audio data (for waveform display)
         """
         self._audio = pyaudio.PyAudio()
         self._stream: Optional[pyaudio.Stream] = None
@@ -30,6 +35,7 @@ class AudioRecorder:
         self._is_recording = False
         self._lock = threading.Lock()
         self._on_status_change = on_status_change
+        self._on_audio_chunk = on_audio_chunk
 
     def _notify_status(self, status: str) -> None:
         """Notify status change via callback if set."""
@@ -60,6 +66,8 @@ class AudioRecorder:
         """Callback for audio stream - stores audio frames."""
         if self._is_recording:
             self._frames.append(in_data)
+            if self._on_audio_chunk:
+                self._on_audio_chunk(in_data)
         return (None, pyaudio.paContinue)
 
     def stop(self) -> bytes:

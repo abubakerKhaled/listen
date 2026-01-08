@@ -233,18 +233,25 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    listen                      Start in push-to-talk mode
-    listen --toggle             Use toggle mode instead
+    listen                      Start GUI (default)
+    listen --cli                Use terminal interface
+    listen --cli --toggle       Terminal with toggle mode
     listen --model small        Use the 'small' Whisper model
-    listen --model tiny --cpu   Force CPU with tiny model
         """,
+    )
+
+    parser.add_argument(
+        "--cli",
+        "-c",
+        action="store_true",
+        help="Use terminal interface instead of GUI",
     )
 
     parser.add_argument(
         "--toggle",
         "-t",
         action="store_true",
-        help="Use toggle mode (press to start/stop) instead of push-to-talk",
+        help="Use toggle mode (press to start/stop) instead of push-to-talk (CLI only)",
     )
 
     parser.add_argument(
@@ -264,12 +271,22 @@ Examples:
     args = parser.parse_args()
 
     try:
-        app = ListenApp(
-            model_size=args.model,
-            toggle_mode=args.toggle,
-            auto_copy=not args.no_copy,
-        )
-        app.run()
+        if args.cli:
+            # Terminal interface
+            app = ListenApp(
+                model_size=args.model,
+                toggle_mode=args.toggle,
+                auto_copy=not args.no_copy,
+            )
+            app.run()
+        else:
+            # GUI interface (default)
+            from .gui import run_gui
+
+            run_gui(
+                model_size=args.model,
+                auto_copy=not args.no_copy,
+            )
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
         sys.exit(1)

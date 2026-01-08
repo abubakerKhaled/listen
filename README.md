@@ -9,68 +9,49 @@ A local voice-to-text transcription tool using OpenAI's Whisper model. Works com
 - 📋 **Clipboard integration** - Automatically copies transcribed text
 - 🎯 **Auto model selection** - Uses tiny for CPU, base for GPU
 - ⌨️ **Keyboard shortcut** - Ctrl+Space to record
+- 📦 **Portable** - Single AppImage works on any Linux distro
 
 ## Installation
 
-### Option 1: AppImage (Recommended)
-
-Download and run - works on any Linux distribution:
+### Download the AppImage
 
 ```bash
-# Download the AppImage
+# Download from releases (replace with actual URL)
 wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage
-
-# Make it executable
 chmod +x listen-1.0.0-x86_64.AppImage
-
-# Run it
-./listen-1.0.0-x86_64.AppImage
 ```
 
-**Install system-wide (optional):**
+### Install System-Wide (Recommended)
+
+Install globally so you can run `listen` from anywhere:
 
 ```bash
+# Copy to system bin
 sudo cp listen-1.0.0-x86_64.AppImage /usr/local/bin/listen
 sudo chmod +x /usr/local/bin/listen
 
-# Now you can run 'listen' from anywhere
-listen --toggle
+# Now run from anywhere
+listen --help
 ```
 
-### Option 2: From Source
+### Alternative: User-Only Installation
 
-1. **Install system dependencies:**
-
-   ```bash
-   sudo apt install libportaudio2 portaudio19-dev xclip
-   ```
-
-2. **Clone and install:**
-
-   ```bash
-   git clone https://github.com/abubakerKhaled/listen.git
-   cd listen
-   pip install .
-   ```
-
-### Option 3: Development Setup
+If you don't have sudo access:
 
 ```bash
-# Clone the repository
-git clone https://github.com/abubakerKhaled/listen.git
-cd listen
+# Create local bin directory
+mkdir -p ~/.local/bin
 
-# Create virtual environment
-python -m venv env
-source env/bin/activate
+# Copy AppImage
+cp listen-1.0.0-x86_64.AppImage ~/.local/bin/listen
+chmod +x ~/.local/bin/listen
 
-# Install in editable mode
-pip install -e .
+# Add to PATH (add to ~/.bashrc or ~/.zshrc)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
 ## Usage
-
-### Start the app
 
 ```bash
 # Push-to-talk mode (hold Ctrl+Space to record)
@@ -108,40 +89,53 @@ listen --model small
 listen --toggle --no-copy
 ```
 
-## Building the AppImage
+## Building from Source
 
-To build the AppImage yourself:
+### Prerequisites
 
 ```bash
-# Install system dependencies
-sudo apt install libportaudio2 portaudio19-dev wget
+sudo apt install libportaudio2 portaudio19-dev wget python3-venv
+```
 
-# Run the build script
+### Build the AppImage
+
+```bash
+git clone https://github.com/abubakerKhaled/listen.git
+cd listen
 ./build-appimage.sh
 ```
 
-The script will create `listen-1.0.0-x86_64.AppImage` in the project directory.
+This creates `listen-1.0.0-x86_64.AppImage` in the project directory.
 
 ## Troubleshooting
 
+### First run is slow
+
+The Whisper model downloads on first use (~40MB for tiny, ~150MB for base). Subsequent runs are instant.
+
 ### "No audio captured"
 
-- Check your microphone is working: `arecord -l`
-- Make sure PulseAudio/PipeWire is running
+- Check your microphone: `arecord -l`
+- Ensure PulseAudio/PipeWire is running
 
 ### Slow transcription on CPU
 
-- Use the `tiny` model: `listen --model tiny`
+Use the tiny model: `listen --model tiny`
 
 ### Keyboard shortcut not working
 
-- pynput requires access to input devices
-- On Wayland, you may need to run from a terminal with proper permissions
+- pynput requires input device access
+- On Wayland, run from a terminal with proper permissions
 
-### First run is slow
+## Uninstall
 
-- The Whisper model downloads on first use (~40MB for tiny, ~150MB for base)
-- Subsequent runs will be much faster
+```bash
+# If installed system-wide
+sudo rm /usr/local/bin/listen
+
+# If installed in ~/.local/bin
+rm ~/.local/bin/listen
+```
 
 ## License
 
