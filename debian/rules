@@ -1,0 +1,56 @@
+#!/usr/bin/make -f
+
+export DH_VIRTUALENV_INSTALL_ROOT=/opt
+export DH_VERBOSE=1
+export PYBUILD_NAME=listen
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_install:
+	# Create installation directories
+	mkdir -p debian/listen/opt/listen
+	mkdir -p debian/listen/usr/bin
+	mkdir -p debian/listen/usr/share/applications
+	mkdir -p debian/listen/usr/share/icons/hicolor/256x256/apps
+	mkdir -p debian/listen/usr/share/icons/hicolor/128x128/apps
+	mkdir -p debian/listen/usr/share/icons/hicolor/64x64/apps
+	mkdir -p debian/listen/usr/share/icons/hicolor/48x48/apps
+	
+	# Create virtual environment and install
+	python3 -m venv debian/listen/opt/listen/venv
+	debian/listen/opt/listen/venv/bin/pip install --upgrade pip wheel
+	debian/listen/opt/listen/venv/bin/pip install .
+	
+	# Copy application source
+	cp -r src/listen_app debian/listen/opt/listen/
+	
+	# Create wrapper script
+	echo '#!/bin/bash' > debian/listen/usr/bin/listen
+	echo 'exec /opt/listen/venv/bin/python -m listen_app.cli "$$@"' >> debian/listen/usr/bin/listen
+	chmod +x debian/listen/usr/bin/listen
+	
+	# Install desktop file
+	cp appimage/listen.desktop debian/listen/usr/share/applications/
+	sed -i 's|Exec=.*|Exec=/usr/bin/listen %U|' debian/listen/usr/share/applications/listen.desktop
+	
+	# Install icons
+	if [ -f appimage/listen.png ]; then \
+		cp appimage/listen.png debian/listen/usr/share/icons/hicolor/256x256/apps/; \
+		if command -v convert > /dev/null; then \
+			convert appimage/listen.png -resize 128x128 debian/listen/usr/share/icons/hicolor/128x128/apps/listen.png; \
+			convert appimage/listen.png -resize 64x64 debian/listen/usr/share/icons/hicolor/64x64/apps/listen.png; \
+			convert appimage/listen.png -resize 48x48 debian/listen/usr/share/icons/hicolor/48x48/apps/listen.png; \
+		fi \
+	fi
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf debian/listen
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
+
+override_dh_strip:
+	# Skip stripping Python files
+	:

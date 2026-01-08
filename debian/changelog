@@ -1,0 +1,11 @@
+listen (1.0.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Voice-to-text transcription using OpenAI Whisper
+  * GTK4/libadwaita GUI with waveform visualization
+  * CLI interface with push-to-talk support
+  * Automatic clipboard integration
+  * Smart model selection based on GPU memory
+  * Enhanced Arabic language support
+
+ -- Abubaker Khaled <abubaker@example.com>  Wed, 08 Jan 2026 20:00:00 +0200

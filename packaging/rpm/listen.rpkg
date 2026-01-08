@@ -1,0 +1,122 @@
+Name:           listen
+Version:        1.0.0
+Release:        1%{?dist}
+Summary:        Voice-to-text transcription tool for Linux
+
+License:        Apache-2.0
+URL:            https://github.com/abubakerKhaled/listen
+Source0:        %{name}-%{version}.tar.gz
+
+BuildArch:      x86_64
+BuildRequires:  python3-devel
+BuildRequires:  python3-pip
+BuildRequires:  python3-virtualenv
+
+Requires:       python3 >= 3.10
+Requires:       python3-gobject
+Requires:       gtk4
+Requires:       libadwaita
+Requires:       portaudio
+Requires:       xclip
+
+%description
+Listen is a voice-to-text transcription tool powered by OpenAI Whisper.
+It provides both a modern GTK4/libadwaita GUI with real-time waveform
+visualization and a CLI interface with push-to-talk support.
+
+Features:
+- Modern GUI with real-time waveform visualization
+- CLI with push-to-talk or toggle recording modes  
+- Local AI processing - no internet required
+- Automatic clipboard integration
+- Smart model selection based on GPU memory
+- Multilingual support with enhanced Arabic handling
+
+%prep
+%autosetup
+
+%build
+# Nothing to build - Python package
+
+%install
+# Create directories
+mkdir -p %{buildroot}/opt/listen
+mkdir -p %{buildroot}%{_bindir}
+mkdir -p %{buildroot}%{_datadir}/applications
+mkdir -p %{buildroot}%{_datadir}/icons/hicolor/256x256/apps
+mkdir -p %{buildroot}%{_datadir}/icons/hicolor/128x128/apps
+mkdir -p %{buildroot}%{_datadir}/icons/hicolor/64x64/apps
+mkdir -p %{buildroot}%{_datadir}/icons/hicolor/48x48/apps
+
+# Create virtual environment and install
+python3 -m venv %{buildroot}/opt/listen/venv
+%{buildroot}/opt/listen/venv/bin/pip install --upgrade pip wheel
+%{buildroot}/opt/listen/venv/bin/pip install .
+
+# Copy application source
+cp -r src/listen_app %{buildroot}/opt/listen/
+
+# Create wrapper script
+cat > %{buildroot}%{_bindir}/listen << 'EOF'
+#!/bin/bash
+exec /opt/listen/venv/bin/python -m listen_app.cli "$@"
+EOF
+chmod +x %{buildroot}%{_bindir}/listen
+
+# Fix virtualenv paths (remove buildroot prefix)
+find %{buildroot}/opt/listen/venv -type f -executable -exec sed -i "s|%{buildroot}||g" {} \; 2>/dev/null || true
+find %{buildroot}/opt/listen/venv -name "*.pth" -exec sed -i "s|%{buildroot}||g" {} \; 2>/dev/null || true
+
+# Install desktop file
+cp appimage/listen.desktop %{buildroot}%{_datadir}/applications/
+sed -i 's|Exec=.*|Exec=/usr/bin/listen %%U|' %{buildroot}%{_datadir}/applications/listen.desktop
+
+# Install icons
+if [ -f appimage/listen.png ]; then
+    cp appimage/listen.png %{buildroot}%{_datadir}/icons/hicolor/256x256/apps/
+    if command -v convert > /dev/null; then
+        convert appimage/listen.png -resize 128x128 %{buildroot}%{_datadir}/icons/hicolor/128x128/apps/listen.png
+        convert appimage/listen.png -resize 64x64 %{buildroot}%{_datadir}/icons/hicolor/64x64/apps/listen.png
+        convert appimage/listen.png -resize 48x48 %{buildroot}%{_datadir}/icons/hicolor/48x48/apps/listen.png
+    fi
+fi
+
+%post
+# Update desktop database
+if command -v update-desktop-database > /dev/null; then
+    update-desktop-database %{_datadir}/applications || true
+fi
+
+# Update icon cache
+if command -v gtk-update-icon-cache > /dev/null; then
+    gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor || true
+fi
+
+%postun
+# Update desktop database
+if command -v update-desktop-database > /dev/null; then
+    update-desktop-database %{_datadir}/applications || true
+fi
+
+# Update icon cache
+if command -v gtk-update-icon-cache > /dev/null; then
+    gtk-update-icon-cache -f -t %{_datadir}/icons/hicolor || true
+fi
+
+%files
+%license LICENSE
+%doc README.md
+/opt/listen/
+%{_bindir}/listen
+%{_datadir}/applications/listen.desktop
+%{_datadir}/icons/hicolor/*/apps/listen.png
+
+%changelog
+* Wed Jan 08 2026 Abubaker Khaled <abubaker@example.com> - 1.0.0-1
+- Initial release
+- Voice-to-text transcription using OpenAI Whisper
+- GTK4/libadwaita GUI with waveform visualization
+- CLI interface with push-to-talk support
+- Automatic clipboard integration
+- Smart model selection based on GPU memory
+- Enhanced Arabic language support

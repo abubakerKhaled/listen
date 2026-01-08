@@ -121,6 +121,36 @@ source ~/.bashrc
 
 </details>
 
+<details>
+<summary><strong>Native Packages (.deb/.rpm)</strong></summary>
+
+**Debian/Ubuntu (.deb):**
+
+```bash
+# Download and install
+wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen_1.0.0-1_amd64.deb
+sudo apt install ./listen_1.0.0-1_amd64.deb
+```
+
+**Fedora/RHEL (.rpm):**
+
+```bash
+# Download and install
+wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-1.x86_64.rpm
+sudo dnf install ./listen-1.0.0-1.x86_64.rpm
+```
+
+**Build from source:**
+
+```bash
+git clone https://github.com/abubakerKhaled/listen.git
+cd listen
+./build-packages.sh --deb-only  # For .deb
+./build-packages.sh --rpm-only  # For .rpm
+```
+
+</details>
+
 ---
 
 ## 🔄 Updating
