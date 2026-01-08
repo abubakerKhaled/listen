@@ -107,6 +107,31 @@ for lib in /usr/lib/x86_64-linux-gnu/libportaudio*; do
     fi
 done
 
+# Copy PyGObject (gi) from system Python
+echo "Copying PyGObject (gi) module..."
+SYSTEM_SITE_PACKAGES="/usr/lib/python3/dist-packages"
+if [ -d "${SYSTEM_SITE_PACKAGES}/gi" ]; then
+    cp -r "${SYSTEM_SITE_PACKAGES}/gi" "${APPDIR}/usr/lib/python${PYTHON_VERSION}/site-packages/"
+fi
+
+# Copy cairo bindings if available
+if [ -d "${SYSTEM_SITE_PACKAGES}/cairo" ]; then
+    cp -r "${SYSTEM_SITE_PACKAGES}/cairo" "${APPDIR}/usr/lib/python${PYTHON_VERSION}/site-packages/"
+fi
+
+# Copy GObject Introspection typelibs for GTK4 and Adwaita
+echo "Copying GTK4/Adwaita typelibs..."
+mkdir -p "${APPDIR}/usr/lib/girepository-1.0"
+for typelib in Gtk-4.0 Gdk-4.0 Adw-1 GdkPixbuf-2.0 Pango-1.0 PangoCairo-1.0 \
+               GObject-2.0 GLib-2.0 Gio-2.0 cairo-1.0 Graphene-1.0 GModule-2.0 \
+               HarfBuzz-0.0 freetype2-2.0 Gsk-4.0; do
+    for path in /usr/lib/x86_64-linux-gnu/girepository-1.0 /usr/lib/girepository-1.0; do
+        if [ -f "${path}/${typelib}.typelib" ]; then
+            cp "${path}/${typelib}.typelib" "${APPDIR}/usr/lib/girepository-1.0/" 2>/dev/null || true
+        fi
+    done
+done
+
 echo "Step 6: Downloading appimagetool..."
 APPIMAGETOOL="${BUILD_DIR}/appimagetool"
 if [ ! -f "${APPIMAGETOOL}" ]; then

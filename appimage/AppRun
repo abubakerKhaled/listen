@@ -22,5 +22,8 @@ export PYTHONNOUSERSITE=1
 # Set XDG directories for model caching (uses ~/.cache by default)
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 
+# Set GI_TYPELIB_PATH for GTK4/Adwaita (PyGObject)
+export GI_TYPELIB_PATH="${APPDIR}/usr/lib/girepository-1.0:${GI_TYPELIB_PATH}"
+
 # Run the application
 exec "${APPDIR}/usr/bin/python3" -m listen_app.cli "$@"

@@ -4,11 +4,12 @@ A local voice-to-text transcription tool using OpenAI's Whisper model. Works com
 
 ## Features
 
-- 🎤 **Push-to-talk** or **toggle mode** recording
+- 🖥️ **Modern GUI** - GTK4/libadwaita interface with real-time waveform visualization
+- 🎤 **Push-to-talk** or **toggle mode** recording (CLI mode)
 - 🧠 **Local AI** - Uses faster-whisper for fast, private transcription
 - 📋 **Clipboard integration** - Automatically copies transcribed text
 - 🎯 **Auto model selection** - Uses tiny for CPU, base for GPU
-- ⌨️ **Keyboard shortcut** - Ctrl+Space to record
+- ⌨️ **Keyboard shortcut** - Ctrl+Space to record (CLI mode)
 - 📦 **Portable** - Single AppImage works on any Linux distro
 
 ## Installation
@@ -53,15 +54,31 @@ source ~/.zshrc
 
 ## Usage
 
-```bash
-# Push-to-talk mode (hold Ctrl+Space to record)
-listen
+### GUI Mode (Default)
 
-# Toggle mode (press Ctrl+Space to start/stop)
-listen --toggle
+```bash
+# Launch the graphical interface
+listen
 ```
 
-### Controls
+The GUI provides:
+
+- Real-time audio waveform visualization
+- Click-to-record button
+- Automatic clipboard copy
+- Model loading status
+
+### CLI Mode
+
+```bash
+# Terminal interface with push-to-talk (hold Ctrl+Space)
+listen --cli
+
+# Terminal interface with toggle mode (press to start/stop)
+listen --cli --toggle
+```
+
+### CLI Controls
 
 | Key | Action |
 |-----|--------|
@@ -74,7 +91,8 @@ listen --toggle
 listen --help
 
 Options:
-  --toggle, -t     Use toggle mode instead of push-to-talk
+  --cli, -c        Use terminal interface instead of GUI
+  --toggle, -t     Use toggle mode instead of push-to-talk (CLI only)
   --model, -m      Specify model: tiny, base, small, medium, large-v3
   --no-copy        Don't auto-copy to clipboard
 ```
@@ -82,11 +100,11 @@ Options:
 ### Examples
 
 ```bash
-# Use a larger model for better accuracy
+# GUI with a specific model
 listen --model small
 
-# Toggle mode without clipboard copy
-listen --toggle --no-copy
+# CLI toggle mode without clipboard copy
+listen --cli --toggle --no-copy
 ```
 
 ## Building from Source
@@ -94,7 +112,11 @@ listen --toggle --no-copy
 ### Prerequisites
 
 ```bash
+# Audio and build dependencies
 sudo apt install libportaudio2 portaudio19-dev wget python3-venv
+
+# GTK4 dependencies (for GUI)
+sudo apt install libgtk-4-1 libadwaita-1-0 gir1.2-gtk-4.0 gir1.2-adw-1
 ```
 
 ### Build the AppImage
