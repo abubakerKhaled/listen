@@ -209,3 +209,8 @@ __marimo__/
 
 .agent/
 .vscode/
+
+# AppImage build artifacts
+*.AppImage
+*.AppImage.zsync
+AppDir/
