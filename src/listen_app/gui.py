@@ -113,6 +113,7 @@ class ListenGUI(Adw.Application):
         self._transcriber: Optional[Transcriber] = None
         self._state = self.STATE_READY
         self._last_transcription = ""
+        self._last_language = ""
 
         self.connect("activate", self._on_activate)
 
@@ -129,6 +130,24 @@ class ListenGUI(Adw.Application):
         # Header bar
         header = Adw.HeaderBar()
         header.set_title_widget(Gtk.Label(label="Listen"))
+
+        # Model selector dropdown
+        model_options = ["tiny", "base", "small", "medium", "large-v3"]
+        self._model_strings = Gtk.StringList.new(model_options)
+        self.model_dropdown = Gtk.DropDown(model=self._model_strings)
+        self.model_dropdown.set_tooltip_text(
+            "Select model size (larger = better Arabic)"
+        )
+        # Set default selection based on initial model_size or default
+        default_idx = (
+            model_options.index(self.model_size)
+            if self.model_size in model_options
+            else 2
+        )  # 'small'
+        self.model_dropdown.set_selected(default_idx)
+        self.model_dropdown.connect("notify::selected", self._on_model_changed)
+        header.pack_end(self.model_dropdown)
+
         main_box.append(header)
 
         # Content box with padding
@@ -227,10 +246,13 @@ class ListenGUI(Adw.Application):
             Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
-    def _load_model(self):
+    def _load_model(self, new_model_size: Optional[ModelSize] = None):
         """Load the transcription model in background."""
         try:
-            self._transcriber = Transcriber(model_size=self.model_size)
+            # Use new_model_size if provided, otherwise use instance default
+            model_to_load = new_model_size if new_model_size else self.model_size
+            self._transcriber = Transcriber(model_size=model_to_load)
+            self.model_size = model_to_load  # Update instance variable
             info = self._transcriber.get_model_info()
 
             # Format device info for display
@@ -242,6 +264,7 @@ class ListenGUI(Adw.Application):
                 f"Ready • {info['model_size'].upper()} model",
             )
             GLib.idle_add(self.action_button.set_sensitive, True)
+            GLib.idle_add(self.model_dropdown.set_sensitive, True)
         except Exception as e:
             GLib.idle_add(self._update_status, f"Error: {e}")
             GLib.idle_add(
@@ -249,6 +272,32 @@ class ListenGUI(Adw.Application):
                 "<span color='#e53935'>⚠ Error loading model</span>",
                 "error",
             )
+            GLib.idle_add(self.action_button.set_sensitive, True)
+            GLib.idle_add(self.model_dropdown.set_sensitive, True)
+
+    def _on_model_changed(self, dropdown, _pspec):
+        """Handle model dropdown selection change."""
+        if self._state != self.STATE_READY:
+            # Don't change model while recording or processing
+            return
+
+        model_options = ["tiny", "base", "small", "medium", "large-v3"]
+        selected_idx = dropdown.get_selected()
+        new_model = model_options[selected_idx]
+
+        if new_model == self.model_size:
+            return  # No change
+
+        # Disable controls while loading
+        self.action_button.set_sensitive(False)
+        self.model_dropdown.set_sensitive(False)
+        self.status_label.set_text(f"Loading {new_model.upper()} model...")
+        self.device_info_label.set_markup("⏳ Switching model...")
+
+        # Load new model in background
+        threading.Thread(
+            target=self._load_model, args=(new_model,), daemon=True
+        ).start()
 
     def _format_device_info(self, info: dict) -> str:
         """Format device info for display."""
@@ -345,17 +394,19 @@ class ListenGUI(Adw.Application):
         try:
             result = self._transcriber.transcribe(audio_data)
             text = result.text.strip()
+            language = result.language
 
             if self.auto_copy and text:
                 pyperclip.copy(text)
 
-            GLib.idle_add(self._on_transcription_complete, text)
+            GLib.idle_add(self._on_transcription_complete, text, language)
         except Exception as e:
-            GLib.idle_add(self._on_transcription_complete, f"Error: {e}")
+            GLib.idle_add(self._on_transcription_complete, f"Error: {e}", "")
 
-    def _on_transcription_complete(self, text: str):
+    def _on_transcription_complete(self, text: str, language: str = ""):
         """Handle transcription completion (runs on main thread)."""
         self._last_transcription = text
+        self._last_language = language
         self._state = self.STATE_RESULT
 
         self.action_button.set_label("📋 Copy & New Recording")
@@ -363,10 +414,25 @@ class ListenGUI(Adw.Application):
         self.action_button.add_css_class("suggested-action")
         self.action_button.set_sensitive(True)
 
+        # Language display mapping
+        lang_names = {
+            "ar": "Arabic",
+            "en": "English",
+            "fr": "French",
+            "es": "Spanish",
+            "de": "German",
+            "zh": "Chinese",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "ru": "Russian",
+        }
+        lang_display = lang_names.get(language, language.upper() if language else "")
+
         if text and not text.startswith("Error:") and not text.startswith("("):
-            self.status_label.set_text(
-                "✓ Copied to clipboard! Click to start new recording"
-            )
+            status_msg = "✓ Copied to clipboard!"
+            if lang_display:
+                status_msg += f" • {lang_display} detected"
+            self.status_label.set_text(status_msg)
             self.result_label.set_text(f'"{text}"')
         else:
             self.status_label.set_text("Ready • Click to start new recording")

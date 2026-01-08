@@ -54,6 +54,7 @@ class ListenApp:
         self._recording = False
         self._processing = False
         self._last_transcription = ""
+        self._last_language = ""
         self._status_lock = threading.Lock()
 
         # Initialize components (lazy load transcriber)
@@ -105,6 +106,19 @@ class ListenApp:
                 if self.auto_copy:
                     content.append(" ", style="dim")
                     content.append("(copied to clipboard)", style="dim italic")
+                if self._last_language:
+                    lang_names = {
+                        "ar": "Arabic",
+                        "en": "English",
+                        "fr": "French",
+                        "es": "Spanish",
+                        "de": "German",
+                        "zh": "Chinese",
+                    }
+                    lang_display = lang_names.get(
+                        self._last_language, self._last_language.upper()
+                    )
+                    content.append(f" [{lang_display}]", style="cyan")
 
             return Panel(
                 content,
@@ -133,6 +147,7 @@ class ListenApp:
                     result = transcriber.transcribe(audio_data)
 
                     self._last_transcription = result.text
+                    self._last_language = result.language
 
                     if self.auto_copy and result.text:
                         pyperclip.copy(result.text)

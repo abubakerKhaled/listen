@@ -25,8 +25,28 @@
 | 🎤 **Flexible Recording** | Push-to-talk or toggle mode |
 | 🧠 **Local AI** | Uses faster-whisper — no internet required |
 | 📋 **Clipboard Integration** | Transcribed text is auto-copied |
-| 🎯 **Smart Model Selection** | Auto-selects `tiny` for CPU, `base` for GPU |
+| 🎯 **Smart Model Selection** | Auto-selects optimal model based on GPU memory |
+| 🌍 **Multilingual Support** | Enhanced Arabic support with language detection |
 | 📦 **Portable** | Single AppImage runs on any Linux distro |
+
+---
+
+## 🤖 Smart Model Selection
+
+Listen automatically selects the optimal Whisper model based on your hardware:
+
+| GPU Memory | Model | Best For |
+|------------|-------|----------|
+| 4GB+ VRAM | `medium` | Best accuracy for Arabic & multilingual |
+| 2GB+ VRAM | `small` | Good balance of speed & accuracy |
+| <2GB VRAM | `base` | Lightweight GPU processing |
+| CPU only | `tiny` | Fast CPU inference |
+
+**Arabic Optimizations:**
+
+- Increased beam search for complex scripts
+- Hallucination prevention for Arabic text
+- Automatic language detection (shows "Arabic detected" after transcription)
 
 ---
 

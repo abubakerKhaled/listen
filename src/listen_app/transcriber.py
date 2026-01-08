@@ -1,17 +1,12 @@
 """Speech-to-text transcription module using faster-whisper."""
 
 import io
+import subprocess
 from dataclasses import dataclass
 from typing import Optional, Literal
 
 from faster_whisper import WhisperModel
 
-
-# Model recommendations based on compute device
-MODEL_RECOMMENDATIONS = {
-    "cpu": "tiny",  # Fast, low memory for CPU
-    "cuda": "base",  # Good balance for GPU (CUDA)
-}
 
 # Available model sizes
 ModelSize = Literal["tiny", "base", "small", "medium", "large-v3"]
@@ -44,7 +39,7 @@ class Transcriber:
 
         Args:
             model_size: Size of the Whisper model to use. If None, auto-selects
-                        based on device (tiny for CPU, base for GPU)
+                        based on device and GPU memory.
             device: Device to run inference on ('auto', 'cpu', 'cuda')
             compute_type: Computation type (e.g., 'int8', 'float16', 'float32').
                           If None, auto-selects based on device.
@@ -53,9 +48,9 @@ class Transcriber:
         if device == "auto":
             device = self._detect_device()
 
-        # Auto-select model if not specified
+        # Auto-select model based on device and GPU memory
         if model_size is None:
-            model_size = MODEL_RECOMMENDATIONS.get(device, "tiny")
+            model_size = self._detect_best_model(device)
 
         # Auto-select compute type
         if compute_type is None:
@@ -79,7 +74,7 @@ class Transcriber:
                 )
                 self.device = "cpu"
                 self.compute_type = "int8"
-                self.model_size = MODEL_RECOMMENDATIONS.get("cpu", "tiny")
+                self.model_size = "tiny"
                 self._model = WhisperModel(
                     self.model_size, device="cpu", compute_type="int8"
                 )
@@ -106,11 +101,49 @@ class Transcriber:
 
         return "cpu"
 
+    def _get_gpu_memory(self) -> int:
+        """Get available GPU memory in MB. Returns 0 if detection fails."""
+        try:
+            result = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return int(result.stdout.strip().split("\n")[0])
+        except Exception:
+            pass
+        return 0
+
+    def _detect_best_model(self, device: str) -> str:
+        """
+        Select optimal model based on device and available GPU memory.
+
+        For GPU: Selects based on VRAM (medium for 4GB+, small for 2GB+)
+        For CPU: Uses tiny for speed
+        """
+        if device != "cuda":
+            return "tiny"  # Fast for CPU
+
+        vram_mb = self._get_gpu_memory()
+
+        if vram_mb >= 4096:
+            return "medium"  # Best Arabic accuracy
+        elif vram_mb >= 2048:
+            return "small"  # Good balance
+        else:
+            return "base"  # Low VRAM fallback
+
     def transcribe(
         self, audio_source: str | bytes, language: Optional[str] = None
     ) -> TranscriptionResult:
         """
-        Transcribe audio to text.
+        Transcribe audio to text with Arabic-optimized settings.
 
         Args:
             audio_source: Either a file path (str) or WAV audio data (bytes)
@@ -123,11 +156,13 @@ class Transcriber:
         if isinstance(audio_source, bytes):
             audio_source = io.BytesIO(audio_source)
 
-        # Transcribe
+        # Transcribe with Arabic-optimized settings
         segments, info = self._model.transcribe(
             audio_source,
             language=language,
-            beam_size=5,
+            beam_size=8,  # Increased for better accuracy on complex languages
+            patience=1.5,  # More thorough search
+            condition_on_previous_text=False,  # Prevents hallucination in Arabic
             vad_filter=True,  # Filter out silence
         )
 
@@ -160,8 +195,6 @@ class Transcriber:
         if self.device == "cuda":
             # Try to get GPU details
             try:
-                import subprocess
-
                 result = subprocess.run(
                     [
                         "nvidia-smi",
@@ -179,17 +212,6 @@ class Transcriber:
                         info["gpu_memory_mb"] = int(parts[1].strip())
                         info["driver_version"] = parts[2].strip()
 
-                # Get CUDA version
-                result = subprocess.run(
-                    [
-                        "nvidia-smi",
-                        "--query-gpu=driver_version",
-                        "--format=csv,noheader",
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
                 # CUDA version from nvidia-smi header
                 result = subprocess.run(
                     ["nvidia-smi"],
