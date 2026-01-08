@@ -1,147 +1,145 @@
-# Listen - Voice-to-Text for Linux
+<p align="center">
+  <img src="appimage/listen.png" alt="Listen Logo" width="128" height="128">
+</p>
 
-A local voice-to-text transcription tool using OpenAI's Whisper model. Works completely offline with no external API calls.
+<h1 align="center">Listen</h1>
 
-## Features
+<p align="center">
+  <strong>Voice-to-Text for Linux</strong><br>
+  Fast, private, offline transcription powered by Whisper AI
+</p>
 
-- 🖥️ **Modern GUI** - GTK4/libadwaita interface with real-time waveform visualization
-- 🎤 **Push-to-talk** or **toggle mode** recording (CLI mode)
-- 🧠 **Local AI** - Uses faster-whisper for fast, private transcription
-- 📋 **Clipboard integration** - Automatically copies transcribed text
-- 🎯 **Auto model selection** - Uses tiny for CPU, base for GPU
-- ⌨️ **Keyboard shortcut** - Ctrl+Space to record (CLI mode)
-- 📦 **Portable** - Single AppImage works on any Linux distro
+<p align="center">
+  <a href="https://github.com/abubakerKhaled/listen/releases"><img src="https://img.shields.io/github/v/release/abubakerKhaled/listen?style=flat-square" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square" alt="License"></a>
+  <a href="#"><img src="https://img.shields.io/badge/platform-Linux-orange?style=flat-square" alt="Platform"></a>
+</p>
 
-## Installation
+---
 
-### Download the AppImage
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 🖥️ **Modern GUI** | GTK4/libadwaita interface with real-time waveform visualization |
+| 🎤 **Flexible Recording** | Push-to-talk or toggle mode |
+| 🧠 **Local AI** | Uses faster-whisper — no internet required |
+| 📋 **Clipboard Integration** | Transcribed text is auto-copied |
+| 🎯 **Smart Model Selection** | Auto-selects `tiny` for CPU, `base` for GPU |
+| 📦 **Portable** | Single AppImage runs on any Linux distro |
+
+---
+
+## 🚀 Quick Start
+
+Install globally with one command:
 
 ```bash
-# Download from releases (replace with actual URL)
-wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage
-chmod +x listen-1.0.0-x86_64.AppImage
+sudo wget -qO /usr/local/bin/listen https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage && sudo chmod +x /usr/local/bin/listen
 ```
 
-### Quick Install Script (Recommended)
-
-Run the install script to set up Listen with full desktop integration:
+Run it:
 
 ```bash
-# Clone the repository (if you haven't already)
+listen
+```
+
+> **Note:** First run downloads the AI model (~40-150MB). Subsequent runs are instant.
+
+---
+
+## 📦 Installation
+
+<details>
+<summary><strong>Step-by-step install</strong></summary>
+
+```bash
+# Download
+wget https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage
+
+# Install globally
+sudo mv listen-1.0.0-x86_64.AppImage /usr/local/bin/listen
+sudo chmod +x /usr/local/bin/listen
+```
+
+</details>
+
+<details>
+<summary><strong>With desktop integration (app menu & icons)</strong></summary>
+
+```bash
 git clone https://github.com/abubakerKhaled/listen.git
 cd listen
-
-# Run the installer
 ./install.sh
 ```
 
-This will:
+Installs to `~/.local/bin/listen` with desktop entry and icons.
 
-- Install the AppImage to `~/.local/bin/listen`
-- Add Listen to your application menu
-- Install icons in multiple sizes
-- Update desktop database for instant availability
+</details>
 
-### Manual Installation
-
-#### System-Wide
-
-Install globally so you can run `listen` from anywhere:
+<details>
+<summary><strong>User-only (no sudo)</strong></summary>
 
 ```bash
-# Copy to system bin
-sudo cp listen-1.0.0-x86_64.AppImage /usr/local/bin/listen
-sudo chmod +x /usr/local/bin/listen
-
-# Now run from anywhere
-listen --help
-```
-
-#### User-Only Installation
-
-If you don't have sudo access:
-
-```bash
-# Create local bin directory
 mkdir -p ~/.local/bin
-
-# Copy AppImage
-cp listen-1.0.0-x86_64.AppImage ~/.local/bin/listen
+wget -qO ~/.local/bin/listen https://github.com/abubakerKhaled/listen/releases/download/v1.0.0/listen-1.0.0-x86_64.AppImage
 chmod +x ~/.local/bin/listen
 
-# Add to PATH (add to ~/.bashrc or ~/.zshrc)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+# Add to PATH (if not already)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-## Usage
+</details>
+
+---
+
+## 📖 Usage
 
 ### GUI Mode (Default)
 
 ```bash
-# Launch the graphical interface
 listen
 ```
 
-The GUI provides:
-
-- Real-time audio waveform visualization
-- Click-to-record button
-- Automatic clipboard copy
-- Model loading status
+The GUI provides real-time waveform visualization, one-click recording, and automatic clipboard copy.
 
 ### CLI Mode
 
 ```bash
-# Terminal interface with push-to-talk (hold Ctrl+Space)
-listen --cli
-
-# Terminal interface with toggle mode (press to start/stop)
-listen --cli --toggle
+listen --cli              # Push-to-talk (hold Ctrl+Space)
+listen --cli --toggle     # Toggle mode (press to start/stop)
 ```
-
-### CLI Controls
-
-| Key            | Action               |
-|----------------|----------------------|
-| `Ctrl+Space`   | Start/stop recording |
-| `Ctrl+C`       | Exit                 |
 
 ### Options
 
-```bash
-listen --help
-
-Options:
-  --cli, -c        Use terminal interface instead of GUI
-  --toggle, -t     Use toggle mode instead of push-to-talk (CLI only)
-  --model, -m      Specify model: tiny, base, small, medium, large-v3
-  --no-copy        Don't auto-copy to clipboard
-```
+| Option | Description |
+|--------|-------------|
+| `--cli, -c` | Use terminal interface |
+| `--toggle, -t` | Toggle recording mode (CLI only) |
+| `--model, -m` | Choose model: `tiny`, `base`, `small`, `medium`, `large-v3` |
+| `--no-copy` | Disable auto-copy to clipboard |
 
 ### Examples
 
 ```bash
-# GUI with a specific model
-listen --model small
-
-# CLI toggle mode without clipboard copy
-listen --cli --toggle --no-copy
+listen --model small              # GUI with small model
+listen --cli --toggle --no-copy   # CLI toggle without clipboard
 ```
 
-## Building from Source
+---
+
+## 🔧 Building from Source
 
 ### Prerequisites
 
 ```bash
-# Audio and build dependencies
-sudo apt install libportaudio2 portaudio19-dev wget python3-venv
-
-# GTK4 dependencies (for GUI)
-sudo apt install libgtk-4-1 libadwaita-1-0 gir1.2-gtk-4.0 gir1.2-adw-1
+# Ubuntu/Debian
+sudo apt install libportaudio2 portaudio19-dev python3-venv \
+                 libgtk-4-1 libadwaita-1-0 gir1.2-gtk-4.0 gir1.2-adw-1
 ```
 
-### Build the AppImage
+### Build
 
 ```bash
 git clone https://github.com/abubakerKhaled/listen.git
@@ -149,60 +147,61 @@ cd listen
 ./build-appimage.sh
 ```
 
-This creates `listen-1.0.0-x86_64.AppImage` in the project directory.
+Creates `listen-1.0.0-x86_64.AppImage` in the project directory.
 
-## Troubleshooting
+---
 
-### First run is slow
+## ❓ Troubleshooting
 
-The Whisper model downloads on first use (~40MB for tiny, ~150MB for base). Subsequent runs are instant.
+| Issue | Solution |
+|-------|----------|
+| First run is slow | Model downloads on first use. Subsequent runs are instant. |
+| "No audio captured" | Check mic with `arecord -l`. Ensure PulseAudio/PipeWire is running. |
+| Slow on CPU | Use `listen --model tiny` |
+| Keyboard shortcut not working | On Wayland, run from terminal with proper permissions |
 
-### "No audio captured"
+---
 
-- Check your microphone: `arecord -l`
-- Ensure PulseAudio/PipeWire is running
+## 🗑️ Uninstall
 
-### Slow transcription on CPU
-
-Use the tiny model: `listen --model tiny`
-
-### Keyboard shortcut not working
-
-- pynput requires input device access
-- On Wayland, run from a terminal with proper permissions
-
-## Uninstall
-
-### Using the Uninstall Script (Recommended)
-
-If you installed using the install script:
+<details>
+<summary><strong>Using uninstall script</strong></summary>
 
 ```bash
 ./uninstall.sh
 ```
 
-This will remove:
+</details>
 
-- The AppImage from `~/.local/bin`
-- The desktop entry from your application menu
-- All installed icons
-
-### Manual Uninstall
+<details>
+<summary><strong>Manual uninstall</strong></summary>
 
 ```bash
-# If installed system-wide
+# Global install
 sudo rm /usr/local/bin/listen
 
-# If installed in ~/.local/bin
+# User install
 rm ~/.local/bin/listen
-
-# Remove desktop entry (if installed via script)
 rm ~/.local/share/applications/listen.desktop
-
-# Remove icons (if installed via script)
 rm -f ~/.local/share/icons/hicolor/*/apps/listen.png
 ```
 
-## License
+</details>
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📄 License
+
+[Apache License 2.0](LICENSE) — free to use, modify, and distribute.
+
+---
+
+<p align="center">
+  Made with ❤️ for the Linux community
+</p>
