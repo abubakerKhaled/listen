@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE=1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# Nothing to build - this is a meta-package that installs an AppImage
+	:
+
+override_dh_auto_test:
+	# No tests
+	:
+
+override_dh_auto_install:
+	# Create directories
+	mkdir -p debian/listen/usr/bin
+	mkdir -p debian/listen/usr/share/applications
+	mkdir -p debian/listen/usr/share/icons/hicolor/256x256/apps
+	mkdir -p debian/listen/usr/lib/listen
+	
+	# Copy the install script that will download the AppImage
+	cp debian/listen-installer.sh debian/listen/usr/lib/listen/
+	chmod +x debian/listen/usr/lib/listen/listen-installer.sh
+	
+	# Copy wrapper script
+	cp debian/listen-wrapper.sh debian/listen/usr/bin/listen
+	chmod +x debian/listen/usr/bin/listen
+	
+	# Install desktop file
+	cp appimage/listen.desktop debian/listen/usr/share/applications/
+	sed -i 's|Exec=.*|Exec=listen %U|' debian/listen/usr/share/applications/listen.desktop
+	
+	# Install icon
+	cp appimage/listen.png debian/listen/usr/share/icons/hicolor/256x256/apps/
+
+override_dh_shlibdeps:
+	# Skip - no shared libraries
+	:
+
+override_dh_strip:
+	# Skip - no binaries to strip
+	:

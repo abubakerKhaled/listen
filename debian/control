@@ -1,0 +1,28 @@
+Source: listen
+Section: sound
+Priority: optional
+Maintainer: abubakrkhaled1 <aboubkerkhaled77@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/abubakerKhaled/listen
+Rules-Requires-Root: no
+
+Package: listen
+Architecture: all
+Depends: ${misc:Depends},
+         wget | curl
+Description: Voice-to-text transcription tool for Linux
+ Listen is a voice-to-text transcription tool powered by OpenAI Whisper.
+ It provides both a modern GTK4/libadwaita GUI with real-time waveform
+ visualization and a CLI interface with push-to-talk support.
+ .
+ This package downloads and installs the Listen AppImage from GitHub,
+ which bundles all required dependencies.
+ .
+ Features:
+  - Modern GUI with real-time waveform visualization
+  - CLI with push-to-talk or toggle recording modes
+  - Local AI processing - no internet required
+  - Automatic clipboard integration
+  - Smart model selection based on GPU memory
+  - Multilingual support with enhanced Arabic handling

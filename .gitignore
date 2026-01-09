@@ -214,3 +214,7 @@ __marimo__/
 *.AppImage
 *.AppImage.zsync
 AppDir/
+
+*.log
+buildlog.txt
+files
