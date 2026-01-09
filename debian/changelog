@@ -1,4 +1,4 @@
-listen (1.0.0-5) noble; urgency=medium
+listen (1.0.0-6) noble; urgency=medium
 
   * Initial release
   * Voice-to-text transcription using OpenAI Whisper
