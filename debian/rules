@@ -54,3 +54,7 @@ override_dh_shlibdeps:
 override_dh_strip:
 	# Skip stripping Python files
 	:
+
+override_dh_auto_test:
+	# Skip tests - pyaudio requires PortAudio which isn't available at build time
+	:
