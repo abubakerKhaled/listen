@@ -52,7 +52,15 @@ Listen automatically selects the optimal Whisper model based on your hardware:
 
 ## 🚀 Quick Start
 
-**One-command install with desktop integration:**
+**Ubuntu/Debian PPA (Stable):**
+
+```bash
+sudo add-apt-repository ppa:abubakrkhaled1/listen
+sudo apt update
+sudo apt install listen
+```
+
+**One-command install (AppImage):**
 
 ```bash
 git clone https://github.com/abubakerKhaled/listen.git && cd listen && ./setup.sh
