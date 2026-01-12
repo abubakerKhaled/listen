@@ -29,7 +29,7 @@ class ListenGUI(Adw.Application):
     def __init__(
         self,
         model_size: Optional[ModelSize] = None,
-        auto_copy: bool = True,
+        auto_copy: bool = False,
     ):
         super().__init__(application_id="com.listen.app")
         self.model_size = model_size
@@ -128,13 +128,13 @@ class ListenGUI(Adw.Application):
         self.action_button.set_sensitive(False)
         button_box.append(self.action_button)
 
-        # Retry button (hidden by default, shown after transcription)
-        self.retry_button = Gtk.Button(label="🔄 Retry")
-        self.retry_button.add_css_class("pill")
-        self.retry_button.set_size_request(100, 50)
-        self.retry_button.connect("clicked", self._on_retry_clicked)
-        self.retry_button.set_visible(False)
-        button_box.append(self.retry_button)
+        # Regenerate button (hidden by default, shown after transcription)
+        self.regenerate_button = Gtk.Button(label="🔄 Regenerate")
+        self.regenerate_button.add_css_class("pill")
+        self.regenerate_button.set_size_request(120, 50)
+        self.regenerate_button.connect("clicked", self._on_regenerate_clicked)
+        self.regenerate_button.set_visible(False)
+        button_box.append(self.regenerate_button)
 
         content_box.append(button_box)
 
@@ -281,7 +281,7 @@ class ListenGUI(Adw.Application):
         self.action_button.set_label("⏹️ Transcribe")
         self.action_button.remove_css_class("suggested-action")
         self.action_button.add_css_class("destructive-action")
-        self.retry_button.set_visible(False)
+        self.regenerate_button.set_visible(False)
         self.status_label.set_text("Recording... Click to transcribe")
         self.result_label.set_text("")
         self.waveform.clear()
@@ -349,8 +349,8 @@ class ListenGUI(Adw.Application):
         self.action_button.add_css_class("suggested-action")
         self.action_button.set_sensitive(True)
 
-        # Show retry button if we have audio to retry
-        self.retry_button.set_visible(
+        # Show regenerate button if we have audio to re-process
+        self.regenerate_button.set_visible(
             self._last_audio_data is not None and len(self._last_audio_data) >= 1000
         )
 
@@ -378,16 +378,16 @@ class ListenGUI(Adw.Application):
             self.status_label.set_text("Ready • Click to start new recording")
             self.result_label.set_text(text)
 
-    def _on_retry_clicked(self, button):
-        """Handle retry button click to re-transcribe the last audio."""
+    def _on_regenerate_clicked(self, button):
+        """Handle regenerate button click to re-transcribe the last audio."""
         if self._last_audio_data is None or len(self._last_audio_data) < 1000:
             return
 
         self._state = self.STATE_TRANSCRIBING
 
-        self.action_button.set_label("⏳ Retrying...")
+        self.action_button.set_label("⏳ Regenerating...")
         self.action_button.set_sensitive(False)
-        self.retry_button.set_visible(False)
+        self.regenerate_button.set_visible(False)
         self.status_label.set_text("Re-processing audio...")
 
         # Transcribe the stored audio in background
@@ -402,7 +402,7 @@ class ListenGUI(Adw.Application):
         self._last_audio_data = None
 
         self.action_button.set_label("🎤 Record")
-        self.retry_button.set_visible(False)
+        self.regenerate_button.set_visible(False)
         self.status_label.set_text("Ready")
         self.result_label.set_text("")
         self.waveform.clear()
