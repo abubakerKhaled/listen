@@ -209,6 +209,10 @@ __marimo__/
 
 .agent/
 .vscode/
+.idea/
+
+# Misc files
+wget-log
 
 # AppImage build artifacts
 *.AppImage
