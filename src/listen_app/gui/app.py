@@ -11,7 +11,7 @@ from gi.repository import Gtk, Adw, GLib, Gdk
 
 import pyperclip
 
-from ..audio import AudioRecorder
+from ..audio import AudioRecorder, AudioPlayer
 from ..transcriber import Transcriber, ModelSize
 from .widgets import WaveformDrawingArea
 from .styles import MAIN_CSS
@@ -23,6 +23,9 @@ class ListenGUI(Adw.Application):
     # States for the button cycle
     STATE_READY = "ready"  # Ready to record
     STATE_RECORDING = "recording"  # Currently recording
+    STATE_RECORDED = (
+        "recorded"  # Recording stopped, ready to preview/transcribe/discard
+    )
     STATE_TRANSCRIBING = "transcribing"  # Processing audio
     STATE_RESULT = "result"  # Showing result with copy option
 
@@ -37,6 +40,7 @@ class ListenGUI(Adw.Application):
 
         self._recorder: Optional[AudioRecorder] = None
         self._transcriber: Optional[Transcriber] = None
+        self._player: Optional[AudioPlayer] = None
         self._state = self.STATE_READY
         self._last_transcription = ""
         self._last_language = ""
@@ -128,6 +132,14 @@ class ListenGUI(Adw.Application):
         self.action_button.set_sensitive(False)
         button_box.append(self.action_button)
 
+        # Play button for result state (hidden by default)
+        self.result_play_button = Gtk.Button(label="▶️ Play")
+        self.result_play_button.add_css_class("pill")
+        self.result_play_button.set_size_request(100, 50)
+        self.result_play_button.connect("clicked", self._on_result_play_clicked)
+        self.result_play_button.set_visible(False)
+        button_box.append(self.result_play_button)
+
         # Regenerate button (hidden by default, shown after transcription)
         self.regenerate_button = Gtk.Button(label="🔄 Regenerate")
         self.regenerate_button.add_css_class("pill")
@@ -137,6 +149,46 @@ class ListenGUI(Adw.Application):
         button_box.append(self.regenerate_button)
 
         content_box.append(button_box)
+
+        # Recorded state button container (Play, Continue, Transcribe, Discard)
+        self.recorded_button_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=8
+        )
+        self.recorded_button_box.set_halign(Gtk.Align.CENTER)
+        self.recorded_button_box.set_visible(False)
+
+        # Play/Stop button
+        self.play_button = Gtk.Button(label="▶️ Play")
+        self.play_button.add_css_class("pill")
+        self.play_button.set_size_request(90, 50)
+        self.play_button.connect("clicked", self._on_play_clicked)
+        self.recorded_button_box.append(self.play_button)
+
+        # Continue Recording button
+        self.continue_button = Gtk.Button(label="🎤 Continue")
+        self.continue_button.add_css_class("pill")
+        self.continue_button.set_size_request(110, 50)
+        self.continue_button.connect("clicked", self._on_continue_clicked)
+        self.recorded_button_box.append(self.continue_button)
+
+        # Transcribe button
+        self.transcribe_button = Gtk.Button(label="📝 Transcribe")
+        self.transcribe_button.add_css_class("suggested-action")
+        self.transcribe_button.add_css_class("pill")
+        self.transcribe_button.set_size_request(130, 50)
+        self.transcribe_button.connect("clicked", self._on_transcribe_clicked)
+        self.recorded_button_box.append(self.transcribe_button)
+
+        # Discard button
+        self.discard_button = Gtk.Button(label="🗑️")
+        self.discard_button.add_css_class("destructive-action")
+        self.discard_button.add_css_class("pill")
+        self.discard_button.set_size_request(50, 50)
+        self.discard_button.set_tooltip_text("Discard recording")
+        self.discard_button.connect("clicked", self._on_discard_clicked)
+        self.recorded_button_box.append(self.discard_button)
+
+        content_box.append(self.recorded_button_box)
 
         # Transcription result
         self.result_label = Gtk.Label(label="")
@@ -153,6 +205,9 @@ class ListenGUI(Adw.Application):
 
         # Initialize recorder
         self._recorder = AudioRecorder(on_status_change=self._on_recording_status)
+
+        # Initialize player with completion callback
+        self._player = AudioPlayer(on_complete=self._on_playback_complete)
 
         # Load model in background
         threading.Thread(target=self._load_model, daemon=True).start()
@@ -268,7 +323,7 @@ class ListenGUI(Adw.Application):
         if self._state == self.STATE_READY:
             self._start_recording()
         elif self._state == self.STATE_RECORDING:
-            self._stop_and_transcribe()
+            self._stop_recording()
         elif self._state == self.STATE_RESULT:
             self._reset_to_ready()
 
@@ -278,11 +333,12 @@ class ListenGUI(Adw.Application):
         self._last_transcription = ""
         self._last_audio_data = None
 
-        self.action_button.set_label("⏹️ Transcribe")
+        self.action_button.set_label("⏹️ Stop")
         self.action_button.remove_css_class("suggested-action")
         self.action_button.add_css_class("destructive-action")
         self.regenerate_button.set_visible(False)
-        self.status_label.set_text("Recording... Click to transcribe")
+        self.recorded_button_box.set_visible(False)
+        self.status_label.set_text("Recording... Click Stop when finished")
         self.result_label.set_text("")
         self.waveform.clear()
 
@@ -294,8 +350,118 @@ class ListenGUI(Adw.Application):
         """Handle incoming audio chunk for waveform."""
         GLib.idle_add(self.waveform.add_samples, data)
 
+    def _stop_recording(self):
+        """Stop recording and enter RECORDED state for preview."""
+        audio_data = self._recorder.stop()
+
+        if len(audio_data) < 1000:
+            self.status_label.set_text("No audio captured. Try again.")
+            self._reset_to_ready()
+            return
+
+        # Store audio for playback and transcription
+        self._last_audio_data = audio_data
+        self._state = self.STATE_RECORDED
+
+        # Update UI for recorded state
+        self.action_button.set_visible(False)
+        self.recorded_button_box.set_visible(True)
+        self.play_button.set_label("▶️ Play")
+        self.status_label.set_text(
+            "Review your recording • Play, Transcribe, or Discard"
+        )
+
+    def _on_play_clicked(self, button):
+        """Handle play/stop button click for audio playback."""
+        if self._player.is_playing():
+            self._player.stop()
+            self.play_button.set_label("▶️ Play")
+        else:
+            if self._last_audio_data:
+                self._player.play(self._last_audio_data)
+                self.play_button.set_label("⏹️ Stop")
+                self.status_label.set_text("Playing audio...")
+
+    def _on_playback_complete(self):
+        """Handle playback completion (called from background thread)."""
+        GLib.idle_add(self._update_playback_ui_complete)
+
+    def _update_playback_ui_complete(self):
+        """Update UI when playback completes (runs on main thread)."""
+        self.play_button.set_label("▶️ Play")
+        self.result_play_button.set_label("▶️ Play")
+        if self._state == self.STATE_RECORDED:
+            self.status_label.set_text(
+                "Review your recording • Play, Transcribe, or Discard"
+            )
+        elif self._state == self.STATE_RESULT:
+            self.status_label.set_text("✓ Transcription complete")
+
+    def _on_result_play_clicked(self, button):
+        """Handle play button click in result state."""
+        if self._player.is_playing():
+            self._player.stop()
+            self.result_play_button.set_label("▶️ Play")
+        else:
+            if self._last_audio_data:
+                self._player.play(self._last_audio_data)
+                self.result_play_button.set_label("⏹️ Stop")
+                self.status_label.set_text("Playing audio...")
+
+    def _on_transcribe_clicked(self, button):
+        """Handle transcribe button click to process the recorded audio."""
+        if self._last_audio_data is None or len(self._last_audio_data) < 1000:
+            return
+
+        # Stop any playback
+        self._player.stop()
+
+        self._state = self.STATE_TRANSCRIBING
+
+        # Update UI for transcribing state
+        self.recorded_button_box.set_visible(False)
+        self.action_button.set_visible(True)
+        self.action_button.set_label("⏳ Transcribing...")
+        self.action_button.remove_css_class("destructive-action")
+        self.action_button.set_sensitive(False)
+        self.status_label.set_text("Processing audio...")
+
+        # Transcribe in background
+        threading.Thread(
+            target=self._transcribe_audio, args=(self._last_audio_data,), daemon=True
+        ).start()
+
+    def _on_discard_clicked(self, button):
+        """Handle discard button click to remove recording and start over."""
+        # Stop any playback
+        self._player.stop()
+        self._reset_to_ready()
+
+    def _on_continue_clicked(self, button):
+        """Handle continue button click to resume recording."""
+        # Stop any playback
+        self._player.stop()
+
+        # Restore existing frames to recorder
+        if self._last_audio_data:
+            self._recorder.set_frames_from_wav(self._last_audio_data)
+
+        self._state = self.STATE_RECORDING
+
+        # Update UI for recording state
+        self.recorded_button_box.set_visible(False)
+        self.action_button.set_visible(True)
+        self.action_button.set_label("⏹️ Stop")
+        self.action_button.remove_css_class("suggested-action")
+        self.action_button.add_css_class("destructive-action")
+        self.status_label.set_text("Recording... Click Stop when finished")
+
+        # Resume recording (don't clear existing frames)
+        self._recorder._on_audio_chunk = self._on_audio_chunk
+        self._recorder.resume()
+
     def _stop_and_transcribe(self):
-        """Stop recording and transcribe."""
+        """Stop recording and transcribe (legacy method for compatibility)."""
         self._state = self.STATE_TRANSCRIBING
 
         self.action_button.set_label("⏳ Transcribing...")
@@ -350,9 +516,12 @@ class ListenGUI(Adw.Application):
         self.action_button.set_sensitive(True)
 
         # Show regenerate button if we have audio to re-process
-        self.regenerate_button.set_visible(
+        has_audio = (
             self._last_audio_data is not None and len(self._last_audio_data) >= 1000
         )
+        self.regenerate_button.set_visible(has_audio)
+        self.result_play_button.set_visible(has_audio)
+        self.result_play_button.set_label("▶️ Play")
 
         # Language display mapping
         lang_names = {
@@ -402,7 +571,13 @@ class ListenGUI(Adw.Application):
         self._last_audio_data = None
 
         self.action_button.set_label("🎤 Record")
+        self.action_button.set_visible(True)
+        self.action_button.remove_css_class("destructive-action")
+        self.action_button.add_css_class("suggested-action")
+        self.action_button.set_sensitive(True)
         self.regenerate_button.set_visible(False)
+        self.result_play_button.set_visible(False)
+        self.recorded_button_box.set_visible(False)
         self.status_label.set_text("Ready")
         self.result_label.set_text("")
         self.waveform.clear()

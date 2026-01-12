@@ -69,6 +69,43 @@ class AudioRecorder:
             self._stream.start_stream()
             self._notify_status("recording")
 
+    def resume(self, input_device_index: Optional[int] = None) -> None:
+        """Resume recording without clearing existing frames."""
+        with self._lock:
+            if self._is_recording:
+                return
+
+            # Don't clear frames - keep existing audio
+            self._is_recording = True
+
+            self._stream = self._audio.open(
+                format=self.FORMAT,
+                channels=self.CHANNELS,
+                rate=self.SAMPLE_RATE,
+                input=True,
+                input_device_index=input_device_index,
+                frames_per_buffer=self.CHUNK_SIZE,
+                stream_callback=self._audio_callback,
+            )
+            self._stream.start_stream()
+            self._notify_status("recording")
+
+    def set_frames_from_wav(self, wav_data: bytes) -> None:
+        """Set frames from WAV data to allow continuing recording."""
+        import io
+        import wave
+
+        buffer = io.BytesIO(wav_data)
+        with wave.open(buffer, "rb") as wf:
+            # Read all audio data as raw frames
+            raw_data = wf.readframes(wf.getnframes())
+            # Split into chunks matching our chunk size
+            chunk_bytes = self.CHUNK_SIZE * 2  # 2 bytes per sample (16-bit)
+            self._frames = [
+                raw_data[i : i + chunk_bytes]
+                for i in range(0, len(raw_data), chunk_bytes)
+            ]
+
     def _audio_callback(self, in_data, frame_count, time_info, status):
         """Callback for audio stream - stores audio frames."""
         if self._is_recording:
