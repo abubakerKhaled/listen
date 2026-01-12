@@ -1,7 +1,6 @@
-"""GTK4 GUI for Listen voice-to-text application."""
+"""GTK4 GUI application for Listen voice-to-text."""
 
 import threading
-import struct
 from typing import Optional
 
 import gi
@@ -12,83 +11,10 @@ from gi.repository import Gtk, Adw, GLib, Gdk
 
 import pyperclip
 
-from .recorder import AudioRecorder
-from .transcriber import Transcriber, ModelSize
-
-
-class WaveformDrawingArea(Gtk.DrawingArea):
-    """Custom widget for displaying audio waveform."""
-
-    def __init__(self):
-        super().__init__()
-        self._samples = []
-        self._max_samples = 100
-        self.set_draw_func(self._draw)
-        self.set_content_width(380)
-        self.set_content_height(100)
-
-    def _draw(self, area, cr, width, height):
-        """Draw the waveform."""
-        # Background
-        cr.set_source_rgb(0.1, 0.1, 0.15)
-        cr.rectangle(0, 0, width, height)
-        cr.fill()
-
-        if not self._samples:
-            # Draw center line when idle
-            cr.set_source_rgb(0.3, 0.3, 0.4)
-            cr.set_line_width(1)
-            cr.move_to(0, height / 2)
-            cr.line_to(width, height / 2)
-            cr.stroke()
-            return
-
-        # Draw waveform
-        cr.set_source_rgb(0.4, 0.8, 0.4)
-        cr.set_line_width(2)
-
-        sample_width = width / self._max_samples
-        center_y = height / 2
-
-        cr.move_to(0, center_y)
-        for i, sample in enumerate(self._samples):
-            x = i * sample_width
-            # Scale amplitude to fit height
-            amplitude = sample * (height / 2) * 0.9
-            cr.line_to(x, center_y - amplitude)
-
-        cr.stroke()
-
-        # Draw mirror (bottom half)
-        cr.set_source_rgba(0.4, 0.8, 0.4, 0.5)
-        cr.move_to(0, center_y)
-        for i, sample in enumerate(self._samples):
-            x = i * sample_width
-            amplitude = sample * (height / 2) * 0.9
-            cr.line_to(x, center_y + amplitude)
-        cr.stroke()
-
-    def add_samples(self, audio_data: bytes):
-        """Add audio samples to the waveform display."""
-        # Convert bytes to normalized amplitude values
-        samples = struct.unpack(f"{len(audio_data) // 2}h", audio_data)
-
-        # Calculate RMS amplitude for this chunk
-        if samples:
-            rms = (sum(s * s for s in samples) / len(samples)) ** 0.5
-            normalized = min(rms / 32768.0 * 3, 1.0)  # Amplify for visibility
-            self._samples.append(normalized)
-
-            # Keep only recent samples
-            if len(self._samples) > self._max_samples:
-                self._samples = self._samples[-self._max_samples :]
-
-        self.queue_draw()
-
-    def clear(self):
-        """Clear the waveform display."""
-        self._samples = []
-        self.queue_draw()
+from ..audio import AudioRecorder
+from ..transcriber import Transcriber, ModelSize
+from .widgets import WaveformDrawingArea
+from .styles import MAIN_CSS
 
 
 class ListenGUI(Adw.Application):
@@ -114,6 +40,7 @@ class ListenGUI(Adw.Application):
         self._state = self.STATE_READY
         self._last_transcription = ""
         self._last_language = ""
+        self._last_audio_data: Optional[bytes] = None
 
         self.connect("activate", self._on_activate)
 
@@ -188,14 +115,28 @@ class ListenGUI(Adw.Application):
         self.status_label.add_css_class("dim-label")
         content_box.append(self.status_label)
 
+        # Button container for action buttons
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        button_box.set_halign(Gtk.Align.CENTER)
+
         # Main action button
         self.action_button = Gtk.Button(label="🎤 Record")
         self.action_button.add_css_class("suggested-action")
         self.action_button.add_css_class("pill")
-        self.action_button.set_size_request(-1, 50)
+        self.action_button.set_size_request(200, 50)
         self.action_button.connect("clicked", self._on_action_clicked)
         self.action_button.set_sensitive(False)
-        content_box.append(self.action_button)
+        button_box.append(self.action_button)
+
+        # Retry button (hidden by default, shown after transcription)
+        self.retry_button = Gtk.Button(label="🔄 Retry")
+        self.retry_button.add_css_class("pill")
+        self.retry_button.set_size_request(100, 50)
+        self.retry_button.connect("clicked", self._on_retry_clicked)
+        self.retry_button.set_visible(False)
+        button_box.append(self.retry_button)
+
+        content_box.append(button_box)
 
         # Transcription result
         self.result_label = Gtk.Label(label="")
@@ -220,28 +161,8 @@ class ListenGUI(Adw.Application):
 
     def _apply_css(self):
         """Apply custom styling."""
-        css = b"""
-        .recording-button {
-            background: linear-gradient(to bottom, #e53935, #c62828);
-            color: white;
-        }
-        .device-info-frame {
-            background: alpha(@card_bg_color, 0.5);
-            border-radius: 8px;
-        }
-        .device-info-label {
-            font-size: 11px;
-            font-family: monospace;
-        }
-        .gpu-active {
-            color: #76b900;
-        }
-        .cpu-active {
-            color: #0071c5;
-        }
-        """
         provider = Gtk.CssProvider()
-        provider.load_from_data(css)
+        provider.load_from_data(MAIN_CSS)
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
@@ -349,16 +270,18 @@ class ListenGUI(Adw.Application):
         elif self._state == self.STATE_RECORDING:
             self._stop_and_transcribe()
         elif self._state == self.STATE_RESULT:
-            self._copy_and_reset()
+            self._reset_to_ready()
 
     def _start_recording(self):
         """Start recording audio."""
         self._state = self.STATE_RECORDING
         self._last_transcription = ""
+        self._last_audio_data = None
 
         self.action_button.set_label("⏹️ Transcribe")
         self.action_button.remove_css_class("suggested-action")
         self.action_button.add_css_class("destructive-action")
+        self.retry_button.set_visible(False)
         self.status_label.set_text("Recording... Click to transcribe")
         self.result_label.set_text("")
         self.waveform.clear()
@@ -383,13 +306,19 @@ class ListenGUI(Adw.Application):
         # Stop and transcribe in background
         threading.Thread(target=self._transcribe_audio, daemon=True).start()
 
-    def _transcribe_audio(self):
+    def _transcribe_audio(self, audio_data: Optional[bytes] = None):
         """Transcribe recorded audio (runs in background thread)."""
-        audio_data = self._recorder.stop()
+        if audio_data is None:
+            audio_data = self._recorder.stop()
 
         if len(audio_data) < 1000:
-            GLib.idle_add(self._on_transcription_complete, "(no audio captured)")
+            GLib.idle_add(
+                self._on_transcription_complete, "(no audio captured)", "", None
+            )
             return
+
+        # Store audio for potential retry
+        self._last_audio_data = audio_data
 
         try:
             result = self._transcriber.transcribe(audio_data)
@@ -399,20 +328,31 @@ class ListenGUI(Adw.Application):
             if self.auto_copy and text:
                 pyperclip.copy(text)
 
-            GLib.idle_add(self._on_transcription_complete, text, language)
+            GLib.idle_add(self._on_transcription_complete, text, language, audio_data)
         except Exception as e:
-            GLib.idle_add(self._on_transcription_complete, f"Error: {e}", "")
+            GLib.idle_add(
+                self._on_transcription_complete, f"Error: {e}", "", audio_data
+            )
 
-    def _on_transcription_complete(self, text: str, language: str = ""):
+    def _on_transcription_complete(
+        self, text: str, language: str = "", audio_data: Optional[bytes] = None
+    ):
         """Handle transcription completion (runs on main thread)."""
         self._last_transcription = text
         self._last_language = language
+        if audio_data is not None:
+            self._last_audio_data = audio_data
         self._state = self.STATE_RESULT
 
-        self.action_button.set_label("📋 Copy & New Recording")
+        self.action_button.set_label("🎤 Record Again")
         self.action_button.remove_css_class("destructive-action")
         self.action_button.add_css_class("suggested-action")
         self.action_button.set_sensitive(True)
+
+        # Show retry button if we have audio to retry
+        self.retry_button.set_visible(
+            self._last_audio_data is not None and len(self._last_audio_data) >= 1000
+        )
 
         # Language display mapping
         lang_names = {
@@ -438,17 +378,31 @@ class ListenGUI(Adw.Application):
             self.status_label.set_text("Ready • Click to start new recording")
             self.result_label.set_text(text)
 
-    def _copy_and_reset(self):
-        """Copy text to clipboard again and reset to ready state."""
-        if self._last_transcription and not self._last_transcription.startswith(
-            "Error:"
-        ):
-            pyperclip.copy(self._last_transcription)
+    def _on_retry_clicked(self, button):
+        """Handle retry button click to re-transcribe the last audio."""
+        if self._last_audio_data is None or len(self._last_audio_data) < 1000:
+            return
 
+        self._state = self.STATE_TRANSCRIBING
+
+        self.action_button.set_label("⏳ Retrying...")
+        self.action_button.set_sensitive(False)
+        self.retry_button.set_visible(False)
+        self.status_label.set_text("Re-processing audio...")
+
+        # Transcribe the stored audio in background
+        threading.Thread(
+            target=self._transcribe_audio, args=(self._last_audio_data,), daemon=True
+        ).start()
+
+    def _reset_to_ready(self):
+        """Reset to ready state for new recording."""
         self._state = self.STATE_READY
         self._last_transcription = ""
+        self._last_audio_data = None
 
         self.action_button.set_label("🎤 Record")
+        self.retry_button.set_visible(False)
         self.status_label.set_text("Ready")
         self.result_label.set_text("")
         self.waveform.clear()
@@ -456,9 +410,3 @@ class ListenGUI(Adw.Application):
     def run_app(self):
         """Run the application."""
         self.run(None)
-
-
-def run_gui(model_size: Optional[ModelSize] = None, auto_copy: bool = True):
-    """Entry point for GUI mode."""
-    app = ListenGUI(model_size=model_size, auto_copy=auto_copy)
-    app.run_app()

@@ -2,7 +2,7 @@
 
 __version__ = "1.0.0"
 
-from .recorder import AudioRecorder
+from .audio import AudioRecorder
 from .transcriber import Transcriber, TranscriptionResult, ModelSize
 
 __all__ = [
