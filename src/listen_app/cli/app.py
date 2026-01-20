@@ -6,8 +6,8 @@ from typing import Optional
 import pyperclip
 from rich.live import Live
 
-from ..audio import AudioRecorder
-from ..transcriber import Transcriber, ModelSize
+from ..core.audio_backend import AudioBackend
+from ..core.transcriber_backend import TranscriberBackend
 from .display import StatusDisplay, console
 from .keyboard import KeyboardHandler
 
@@ -17,7 +17,8 @@ class ListenApp:
 
     def __init__(
         self,
-        model_size: Optional[ModelSize] = None,
+        audio: Optional[AudioBackend] = None,
+        transcriber: Optional[TranscriberBackend] = None,
         toggle_mode: bool = False,
         auto_copy: bool = True,
     ):
@@ -25,7 +26,8 @@ class ListenApp:
         Initialize the Listen application.
 
         Args:
-            model_size: Whisper model size to use
+            audio: Audio backend for recording (created via factory if None)
+            transcriber: Transcriber backend (created via factory if None)
             toggle_mode: If True, use toggle (press to start/stop) instead of push-to-talk
             auto_copy: If True, automatically copy transcription to clipboard
         """
@@ -38,10 +40,18 @@ class ListenApp:
         self._last_language = ""
         self._status_lock = threading.Lock()
 
-        # Initialize components (lazy load transcriber)
-        self._recorder = AudioRecorder(on_status_change=self._on_recording_status)
-        self._transcriber: Optional[Transcriber] = None
-        self._model_size = model_size
+        # Create backends via factory if not provided
+        if audio is None:
+            from ..factory import create_audio_backend
+
+            audio = create_audio_backend(on_status_change=self._on_recording_status)
+        if transcriber is None:
+            from ..factory import create_transcriber
+
+            transcriber = create_transcriber()
+
+        self._audio = audio
+        self._transcriber = transcriber
 
         # Display and keyboard handlers
         self._display = StatusDisplay(toggle_mode=toggle_mode, auto_copy=auto_copy)
@@ -51,18 +61,6 @@ class ListenApp:
             on_stop_recording=self._stop_recording_and_transcribe,
             is_recording=lambda: self._recording,
         )
-
-    def _get_transcriber(self) -> Transcriber:
-        """Lazy load the transcriber model."""
-        if self._transcriber is None:
-            console.print("[dim]Loading speech recognition model...[/dim]")
-            self._transcriber = Transcriber(model_size=self._model_size)
-            info = self._transcriber.get_model_info()
-            console.print(
-                f"[green]✓[/green] Model loaded: [cyan]{info['model_size']}[/cyan] "
-                f"on [cyan]{info['device']}[/cyan]"
-            )
-        return self._transcriber
 
     def _on_recording_status(self, status: str) -> None:
         """Handle recording status changes."""
@@ -80,9 +78,11 @@ class ListenApp:
             )
 
     def _start_recording(self) -> None:
-        """Start audio recording."""
+        """Start audio recording and preload transcriber model."""
         if not self._recording and not self._processing:
-            self._recorder.start()
+            self._audio.start_recording()
+            # Start loading model in background while user is recording
+            self._transcriber.preload_model()
 
     def _stop_recording_and_transcribe(self) -> None:
         """Stop recording and transcribe the audio."""
@@ -91,15 +91,14 @@ class ListenApp:
                 self._processing = True
 
             # Stop recording and get audio
-            audio_data = self._recorder.stop()
+            audio_data = self._audio.stop_recording()
 
             if len(audio_data) > 1000:  # Minimum audio length check
                 try:
-                    transcriber = self._get_transcriber()
-                    result = transcriber.transcribe(audio_data)
+                    result = self._transcriber.transcribe(audio_data)
 
                     self._last_transcription = result.text
-                    self._last_language = result.language
+                    self._last_language = result.language or ""
 
                     if self.auto_copy and result.text:
                         pyperclip.copy(result.text)
@@ -126,9 +125,8 @@ class ListenApp:
             )
         )
 
-        # Pre-load the model
-        self._get_transcriber()
-
+        # Model will be loaded in background when recording starts
+        console.print("[dim]Model will load when you start recording...[/dim]")
         console.print()
 
         # Start keyboard listener
@@ -144,5 +142,5 @@ class ListenApp:
             pass
         finally:
             self._keyboard.stop()
-            self._recorder.terminate()
+            self._audio.terminate()
             console.print("\n[dim]Goodbye![/dim]")

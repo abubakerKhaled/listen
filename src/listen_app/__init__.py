@@ -2,13 +2,18 @@
 
 __version__ = "1.0.0"
 
-from .audio import AudioRecorder
-from .transcriber import Transcriber, TranscriptionResult, ModelSize
+# Export abstract interfaces
+from .core.audio_backend import AudioBackend
+from .core.transcriber_backend import TranscriberBackend, TranscriptionResult
+
+# Export factory functions
+from .factory import create_audio_backend, create_transcriber
 
 __all__ = [
-    "AudioRecorder",
-    "Transcriber",
+    "AudioBackend",
+    "TranscriberBackend",
     "TranscriptionResult",
-    "ModelSize",
+    "create_audio_backend",
+    "create_transcriber",
     "__version__",
 ]
