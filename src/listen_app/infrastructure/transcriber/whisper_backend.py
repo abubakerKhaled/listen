@@ -53,6 +53,48 @@ class WhisperBackend(TranscriberBackend):
         self._resolved_device: Optional[str] = None
         self._resolved_compute_type: Optional[str] = None
 
+        # GPU info (populated on model load if using CUDA)
+        self._gpu_info: Optional[dict] = None
+
+    def _get_gpu_info(self) -> dict:
+        """Get GPU information (name, memory, CUDA version)."""
+        info = {}
+
+        # Get GPU name and memory via nvidia-smi
+        try:
+            result = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=name,memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                parts = result.stdout.strip().split(",")
+                if len(parts) >= 2:
+                    info["gpu_name"] = parts[0].strip()
+                    info["gpu_memory_mb"] = int(parts[1].strip())
+        except Exception as e:
+            logger.debug("Could not get GPU info via nvidia-smi: %s", e)
+
+        # Get CUDA version
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                info["cuda_version"] = result.stdout.strip().split("\n")[0]
+        except Exception as e:
+            logger.debug("Could not get CUDA version: %s", e)
+
+        return info
+
     def _detect_device(self) -> str:
         """Detect available compute device."""
         try:
@@ -147,6 +189,12 @@ class WhisperBackend(TranscriberBackend):
         self._resolved_device = device
         self._resolved_compute_type = compute_type
 
+        # Capture GPU info if using CUDA
+        if device == "cuda":
+            self._gpu_info = self._get_gpu_info()
+        else:
+            self._gpu_info = None
+
         logger.info(
             "Whisper model loaded: %s on %s (%s)",
             model_size,
@@ -232,9 +280,15 @@ class WhisperBackend(TranscriberBackend):
 
     def get_model_info(self) -> dict:
         """Get information about the loaded model."""
-        return {
+        info = {
             "model_size": self._resolved_model_size or self._model_size,
             "device": self._resolved_device or self._device,
             "compute_type": self._resolved_compute_type or self._compute_type,
             "loaded": self.is_model_loaded(),
         }
+
+        # Include GPU info if available
+        if self._gpu_info:
+            info.update(self._gpu_info)
+
+        return info

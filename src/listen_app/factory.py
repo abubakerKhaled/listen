@@ -4,16 +4,20 @@ Provides convenient factory functions to create properly configured
 audio and transcriber backends.
 """
 
-from typing import Literal, Optional
+from typing import Callable, Literal, Optional
 
 from listen_app.core.audio_backend import AudioBackend
 from listen_app.core.transcriber_backend import TranscriberBackend
 
 
-def create_audio_backend(**kwargs) -> AudioBackend:
+def create_audio_backend(
+    on_audio_chunk: Optional[Callable[[bytes], None]] = None,
+    **kwargs,
+) -> AudioBackend:
     """Create an audio backend instance.
 
     Args:
+        on_audio_chunk: Optional callback for real-time audio data (for waveform)
         **kwargs: Arguments passed to PyAudioBackend constructor
 
     Returns:
@@ -21,7 +25,7 @@ def create_audio_backend(**kwargs) -> AudioBackend:
     """
     from listen_app.infrastructure.audio.pyaudio_backend import PyAudioBackend
 
-    return PyAudioBackend(**kwargs)
+    return PyAudioBackend(on_audio_chunk=on_audio_chunk, **kwargs)
 
 
 def create_transcriber(

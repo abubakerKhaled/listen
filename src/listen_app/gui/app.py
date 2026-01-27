@@ -100,7 +100,7 @@ class ListenGUI(Adw.Application):
         else:
             from ..factory import create_audio_backend
 
-            self._audio = create_audio_backend()
+            self._audio = create_audio_backend(on_audio_chunk=self._on_audio_chunk)
 
         if self._injected_transcriber is not None:
             self._transcriber = self._injected_transcriber
@@ -108,6 +108,11 @@ class ListenGUI(Adw.Application):
             from ..factory import create_transcriber
 
             self._transcriber = create_transcriber(model_size=self.model_size)
+
+    def _on_audio_chunk(self, audio_data: bytes):
+        """Handle real-time audio data for waveform visualization."""
+        if self._state_machine and self._state_machine.is_recording():
+            GLib.idle_add(self._window_builder.waveform.add_samples, audio_data)
 
     def _on_model_ready(self, info: dict):
         """Handle model load completion."""
