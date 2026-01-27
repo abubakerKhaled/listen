@@ -119,7 +119,17 @@ class ListenGUI(Adw.Application):
         device_text = TranscriptionHandler.format_device_info(info)
         self._update_device_info(device_text, info.get("device", "cpu"))
 
-        model_name = (info.get("model_size") or "base").upper()
+        # Sync model_size with what was actually loaded (handles auto-detection)
+        loaded_model = info.get("model_size")
+        if loaded_model:
+            self.model_size = loaded_model
+            # Also sync dropdown if model was auto-detected
+            if loaded_model in WindowBuilder.MODEL_OPTIONS:
+                idx = WindowBuilder.MODEL_OPTIONS.index(loaded_model)
+                # Block signal to avoid triggering _on_model_changed
+                self._window_builder.model_dropdown.set_selected(idx)
+
+        model_name = (loaded_model or "base").upper()
         self._window_builder.status_label.set_text(f"Ready • {model_name} model")
         self._window_builder.action_button.set_sensitive(True)
         self._window_builder.model_dropdown.set_sensitive(True)
